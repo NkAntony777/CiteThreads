@@ -22,7 +22,8 @@ import {
     AISettings,
     ProjectList,
     EdgePanel,
-    GraphFilters
+    GraphFilters,
+    LiquidBackground
 } from './components';
 import { WritingAssistant } from './components/WritingAssistant';
 import { useGraphStore } from './stores/graphStore';
@@ -96,131 +97,134 @@ const App: React.FC = () => {
     ];
 
     return (
-        <Layout className="app-layout">
-            {/* Header */}
-            <Header className="app-header">
-                <div className="header-left">
-                    <Button
-                        type="text"
-                        icon={siderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                        onClick={() => setSiderCollapsed(!siderCollapsed)}
-                        style={{ color: '#666', fontSize: '18px', marginRight: 8 }}
-                    />
-                    <div className="logo">
-                        <ShareAltOutlined className="logo-icon" />
-                        <Title level={4} className="logo-text">CiteThreads</Title>
-                    </div>
-                    <span className="tagline">学术引用脉络可视化</span>
-                    <Tooltip title="查看我的项目历史">
+        <LiquidBackground>
+            <Layout className="app-layout" style={{ background: 'transparent' }}>
+                {/* Header */}
+                <Header className="app-header glass-panel" style={{ background: 'transparent', margin: '16px 16px 0', width: 'auto' }}>
+                    <div className="header-left">
                         <Button
-                            type="default"
-                            className="header-action"
-                            icon={<FolderOutlined />}
-                            onClick={() => setProjectListVisible(true)}
-                            style={{ marginLeft: 16 }}
-                        >
-                            我的项目
-                        </Button>
-                    </Tooltip>
-                </div>
-
-                <div className="header-right">
-                    <Space>
-                        {currentProject && (
-                            <>
-                                <Tooltip title="AI 意图分析">
-                                    <Button
-                                        icon={<RobotOutlined />}
-                                        onClick={handleAnalyze}
-                                        loading={buildProgress?.status === 'analyzing'}
-                                    >
-                                        意图分析
-                                    </Button>
-                                </Tooltip>
-                                <Tooltip title="AI论文写作助手">
-                                    <Button
-                                        icon={<EditOutlined />}
-                                        onClick={() => setViewMode('writing')}
-                                    >
-                                        论文助手
-                                    </Button>
-                                </Tooltip>
-                                <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
-                                    <Button icon={<DownloadOutlined />}>导出</Button>
-                                </Dropdown>
-                            </>
-                        )}
-                        <Tooltip title="AI 设置">
+                            type="text"
+                            icon={siderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                            onClick={() => setSiderCollapsed(!siderCollapsed)}
+                            style={{ color: '#666', fontSize: '18px', marginRight: 8 }}
+                        />
+                        <div className="logo">
+                            <ShareAltOutlined className="logo-icon" />
+                            <Title level={4} className="logo-text">CiteThreads</Title>
+                        </div>
+                        <span className="tagline">学术引用脉络可视化</span>
+                        <Tooltip title="查看我的项目历史">
                             <Button
-                                type="text"
-                                icon={<SettingOutlined />}
-                                onClick={() => setSettingsVisible(true)}
-                            />
+                                type="default"
+                                className="header-action"
+                                icon={<FolderOutlined />}
+                                onClick={() => setProjectListVisible(true)}
+                                style={{ marginLeft: 16 }}
+                            >
+                                我的项目
+                            </Button>
                         </Tooltip>
-                        <Tooltip title="帮助">
-                            <Button type="text" icon={<QuestionCircleOutlined />} />
-                        </Tooltip>
-                        <Tooltip title="GitHub">
-                            <Button
-                                type="text"
-                                icon={<GithubOutlined />}
-                                onClick={() => window.open('https://github.com', '_blank')}
-                            />
-                        </Tooltip>
-                    </Space>
-                </div>
-            </Header>
-
-            <Layout>
-                {/* Sidebar - Search & Controls */}
-                <Sider
-                    width={380}
-                    collapsedWidth={0}
-                    collapsed={siderCollapsed}
-                    className="app-sider"
-                    theme="light"
-                >
-
-                    <div className="sider-content">
-                        <SearchBar />
-                        {currentProject && <GraphFilters />}
                     </div>
-                </Sider>
 
-                {/* Main Content - Graph Visualization or Writing Assistant */}
-                <Content className="app-content">
-                    {viewMode === 'graph' ? (
-                        <GraphCanvas />
-                    ) : (
-                        currentProject && (
-                            <WritingAssistant
-                                projectId={currentProject.metadata.id}
-                                graphNodes={currentProject.graph?.nodes || []}
-                                onBack={() => setViewMode('graph')}
-                            />
-                        )
-                    )}
-                </Content>
+                    <div className="header-right">
+                        <Space>
+                            {currentProject && (
+                                <>
+                                    <Tooltip title="AI 意图分析">
+                                        <Button
+                                            icon={<RobotOutlined />}
+                                            onClick={handleAnalyze}
+                                            loading={buildProgress?.status === 'analyzing'}
+                                        >
+                                            意图分析
+                                        </Button>
+                                    </Tooltip>
+                                    <Tooltip title="AI论文写作助手">
+                                        <Button
+                                            icon={<EditOutlined />}
+                                            onClick={() => setViewMode('writing')}
+                                        >
+                                            论文助手
+                                        </Button>
+                                    </Tooltip>
+                                    <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
+                                        <Button icon={<DownloadOutlined />}>导出</Button>
+                                    </Dropdown>
+                                </>
+                            )}
+                            <Tooltip title="AI 设置">
+                                <Button
+                                    type="text"
+                                    icon={<SettingOutlined />}
+                                    onClick={() => setSettingsVisible(true)}
+                                />
+                            </Tooltip>
+                            <Tooltip title="帮助">
+                                <Button type="text" icon={<QuestionCircleOutlined />} />
+                            </Tooltip>
+                            <Tooltip title="GitHub">
+                                <Button
+                                    type="text"
+                                    icon={<GithubOutlined />}
+                                    onClick={() => window.open('https://github.com/NkAntony777/CiteThreads', '_blank')}
+                                />
+                            </Tooltip>
+                        </Space>
+                    </div>
+                </Header>
+
+                <Layout style={{ background: 'transparent', padding: '16px' }}>
+                    {/* Sidebar - Search & Controls */}
+                    <Sider
+                        width={380}
+                        collapsedWidth={0}
+                        collapsed={siderCollapsed}
+                        className="app-sider glass-panel"
+                        theme="light"
+                        style={{ background: 'transparent', border: 'none', marginRight: '16px' }}
+                    >
+
+                        <div className="sider-content">
+                            <SearchBar />
+                            {currentProject && <GraphFilters />}
+                        </div>
+                    </Sider>
+
+                    {/* Main Content - Graph Visualization or Writing Assistant */}
+                    <Content className="app-content">
+                        {viewMode === 'graph' ? (
+                            <GraphCanvas />
+                        ) : (
+                            currentProject && (
+                                <WritingAssistant
+                                    projectId={currentProject.metadata.id}
+                                    graphNodes={currentProject.graph?.nodes || []}
+                                    onBack={() => setViewMode('graph')}
+                                />
+                            )
+                        )}
+                    </Content>
+                </Layout>
+
+                {/* Node Detail Panel */}
+                <NodePanel />
+                <EdgePanel />
+
+                {/* AI Settings Panel */}
+                <AISettings
+                    visible={settingsVisible}
+                    onClose={() => setSettingsVisible(false)}
+                />
+
+                {/* Project List Panel */}
+                <ProjectList
+                    visible={projectListVisible}
+                    onClose={() => setProjectListVisible(false)}
+                    onSelectProject={handleSelectProject}
+                    currentProjectId={currentProject?.metadata.id}
+                />
             </Layout>
-
-            {/* Node Detail Panel */}
-            <NodePanel />
-            <EdgePanel />
-
-            {/* AI Settings Panel */}
-            <AISettings
-                visible={settingsVisible}
-                onClose={() => setSettingsVisible(false)}
-            />
-
-            {/* Project List Panel */}
-            <ProjectList
-                visible={projectListVisible}
-                onClose={() => setProjectListVisible(false)}
-                onSelectProject={handleSelectProject}
-                currentProjectId={currentProject?.metadata.id}
-            />
-        </Layout>
+        </LiquidBackground>
     );
 };
 
