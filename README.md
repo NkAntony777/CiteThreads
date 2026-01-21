@@ -1,6 +1,6 @@
 # 引脉 (CiteThreads) - 学术引用脉络可视化与智能写作助手
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/anthony/CiteThreads) ![License](https://img.shields.io/badge/license-MIT-green) ![React](https://img.shields.io/badge/frontend-React-61DAFB) ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/NkAntony777/CiteThreads) ![License](https://img.shields.io/badge/license-MIT-green) ![React](https://img.shields.io/badge/frontend-React-61DAFB) ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
 
 > **深入探索文献关系，无缝辅助学术写作**
 >

@@ -1,6 +1,6 @@
 # CiteThreads (引脉) - Academic Citation Visualization & Intelligent Writing Assistant
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/anthony/CiteThreads) ![License](https://img.shields.io/badge/license-MIT-green) ![React](https://img.shields.io/badge/frontend-React-61DAFB) ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/NkAntony777/CiteThreads) ![License](https://img.shields.io/badge/license-MIT-green) ![React](https://img.shields.io/badge/frontend-React-61DAFB) ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
 
 > **Explore Deep Citation Relationships, Seamlessly Assist Academic Writing**
 >
