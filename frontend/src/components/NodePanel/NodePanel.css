@@ -1,0 +1,43 @@
+.node-panel-content {
+    padding: 0;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.paper-title {
+    margin-bottom: 12px !important;
+    line-height: 1.4;
+    color: var(--color-text);
+}
+
+.authors-section {
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--color-muted);
+}
+
+.tags-section {
+    margin-bottom: 8px;
+}
+
+.section-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+.abstract-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-muted);
+}
+
+.ant-drawer-content {
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
+}

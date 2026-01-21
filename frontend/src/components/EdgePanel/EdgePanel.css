@@ -1,0 +1,85 @@
+.edge-panel-content {
+    padding-bottom: 20px;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.intent-section {
+    background: rgba(59, 130, 246, 0.08);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.intent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.confidence-text {
+    font-size: 12px;
+    color: var(--color-muted);
+}
+
+.section-title {
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+}
+
+.reasoning-box {
+    background: rgba(248, 250, 252, 0.9);
+    padding: 12px;
+    border-radius: 10px;
+    border-left: 3px solid var(--color-primary);
+}
+
+.relationship-visual {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+.paper-card {
+    width: 100%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+
+.source-card .ant-card-head {
+    color: #059669;
+}
+
+.target-card .ant-card-head {
+    color: #2563eb;
+}
+
+.arrow-connector {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.context-text {
+    font-family: 'Crimson Pro', 'Times New Roman', serif;
+    font-style: italic;
+    color: var(--color-muted);
+    padding: 10px;
+    background: rgba(248, 250, 252, 0.9);
+    border-radius: 8px;
+}
+
+.ant-drawer-content {
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
+}

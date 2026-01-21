@@ -1,0 +1,216 @@
+/* CiteThreads - Main Application Styles */
+
+/* Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Layout */
+.app-layout {
+    height: 100vh;
+    width: 100vw;
+    background: var(--color-bg);
+}
+
+/* Header */
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.98) 100%);
+    border-bottom: 1px solid var(--color-border);
+    height: 68px;
+    line-height: 68px;
+    box-shadow: var(--shadow-tight);
+    backdrop-filter: blur(12px);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logo-icon {
+    font-size: 22px;
+    color: var(--color-primary);
+    padding: 7px;
+    border-radius: var(--radius-sm);
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.logo-text {
+    margin: 0 !important;
+    color: var(--color-text) !important;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.tagline {
+    color: var(--color-muted);
+    font-size: 13px;
+    padding-left: 16px;
+    border-left: 1px solid var(--color-border);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.header-right .ant-btn-text {
+    color: var(--color-muted);
+}
+
+.header-right .ant-btn-text:hover {
+    color: var(--color-text);
+    background: rgba(59, 130, 246, 0.12);
+}
+
+/* Sider */
+.app-sider {
+    background: var(--color-surface) !important;
+    box-shadow: var(--shadow-tight);
+    position: relative;
+    overflow: hidden;
+    border-right: 1px solid var(--color-border);
+}
+
+.sider-toggle {
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 48px;
+    background: #fff;
+    border-radius: 0 8px 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    transition: all 0.2s;
+}
+
+.sider-toggle:hover {
+    background: #f0f0f0;
+}
+
+.sider-content {
+    height: 100%;
+    overflow-y: auto;
+    padding: 16px 16px 24px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.9) 0%, rgba(255, 255, 255, 0.98) 45%, rgba(248, 250, 252, 0.9) 100%);
+}
+
+/* Content */
+.app-content {
+    background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, rgba(248, 250, 252, 0.9) 45%, rgba(226, 232, 240, 0.8) 100%);
+    overflow: hidden;
+}
+
+/* Ant Design Overrides */
+.ant-layout-sider-collapsed+.ant-layout-content {
+    transition: margin-left 0.2s;
+}
+
+/* Ant Design Theme Touches */
+.ant-btn-primary {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.ant-btn-default:hover,
+.ant-btn-text:hover {
+    color: var(--color-primary);
+}
+
+.ant-card {
+    border-radius: var(--radius-md);
+    border-color: var(--color-border);
+}
+
+.ant-drawer-header {
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #d9d9d9;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #bfbfbf;
+}
+
+/* Selection */
+::selection {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.app-header .ant-btn {
+    border-radius: var(--radius-sm);
+}
+
+.header-action {
+    background: #ffffff;
+    border-color: var(--color-border);
+    color: var(--color-text);
+    box-shadow: var(--shadow-soft);
+}
+
+.header-action:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}

@@ -1,0 +1,20 @@
+.graph-filters {
+    margin-top: 12px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-soft);
+    border-radius: var(--radius-md);
+}
+
+.graph-filters .filter-section {
+    margin-bottom: 16px;
+}
+
+.graph-filters .filter-section:last-child {
+    margin-bottom: 0;
+}
+
+.graph-filters .filter-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #8c8c8c;
+}

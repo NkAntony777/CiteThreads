@@ -1,0 +1,90 @@
+.paper-search-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.paper-search-panel .search-input-row {
+    margin-bottom: 8px;
+}
+
+.paper-search-panel .search-input {
+    width: 100%;
+}
+
+.paper-search-panel .search-tip {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 12px;
+}
+
+.paper-search-panel .search-results {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.paper-search-panel .search-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+.paper-search-panel .paper-item {
+    padding: 12px 8px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.paper-search-panel .paper-item:hover {
+    background-color: #fafafa;
+}
+
+.paper-search-panel .paper-rank {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.paper-search-panel .paper-title {
+    font-weight: 500;
+    color: #333;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+}
+
+.paper-search-panel .paper-authors {
+    color: #666;
+    font-size: 12px;
+}
+
+/* Compact mode */
+.paper-search-panel.compact .search-tip {
+    display: none;
+}
+
+.paper-search-panel.compact .paper-item {
+    padding: 8px 4px;
+}
+
+.paper-search-panel.compact .paper-rank {
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+}
+
+.paper-search-panel.compact .paper-title {
+    font-size: 13px;
+}

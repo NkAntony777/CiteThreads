@@ -1,0 +1,53 @@
+.ai-settings {
+    padding: 0;
+}
+
+.provider-option {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+}
+
+.provider-name {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.provider-desc {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.ant-select-item-option-content .provider-desc {
+    color: #9ca3af;
+}
+
+/* Form styling */
+.ai-settings .ant-form-item-label>label {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+/* Test button */
+.ai-settings .ant-btn-default {
+    border-color: var(--color-border);
+}
+
+.ai-settings .ant-btn-default:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* Alert styling */
+.ai-settings .ant-alert {
+    border-radius: 12px;
+}
+
+.ant-drawer-content {
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
+}
+
+/* Divider */
+.ai-settings .ant-divider {
+    margin: 16px 0;
+}

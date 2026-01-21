@@ -1,0 +1,223 @@
+/**
+ * CanvasEditor Styles
+ */
+
+.canvas-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: #fff;
+    border-left: 1px solid #e8e8e8;
+}
+
+.canvas-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.canvas-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.canvas-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.canvas-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+#vditor-container {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Vditor overrides for better integration - Applied to both standard and fullscreen containers */
+#vditor-container .vditor,
+#fullscreen-vditor .vditor {
+    border: none !important;
+    border-radius: 0 !important;
+    height: 100% !important;
+    /* Ensure column layout so toolbar is on top */
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#vditor-container .vditor-toolbar,
+#fullscreen-vditor .vditor-toolbar {
+    border-bottom: 1px solid #e8e8e8;
+    background: #fafafa;
+    /* Prevent toolbar from shrinking */
+    flex-shrink: 0;
+    width: 100% !important;
+}
+
+#vditor-container .vditor-ir,
+#fullscreen-vditor .vditor-ir {
+    padding: 16px 24px;
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box;
+    text-align: left;
+    padding-bottom: 120px;
+}
+
+#vditor-container .vditor-reset,
+#fullscreen-vditor .vditor-reset {
+    font-family: inherit;
+}
+
+/* Fix outline width and content area */
+#vditor-container .vditor-outline,
+#fullscreen-vditor .vditor-outline {
+    display: none !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+#vditor-container .vditor-content,
+#fullscreen-vditor .vditor-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100% !important;
+    overflow-y: auto !important;
+    height: 100%;
+    min-height: 0;
+}
+
+#vditor-container .vditor-ir pre.vditor-reset,
+#fullscreen-vditor .vditor-ir pre.vditor-reset {
+    width: 100% !important;
+    padding: 0 16px;
+    white-space: pre-wrap !important;
+}
+
+/* ========== Fullscreen Mode ========== */
+.fullscreen-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: #fff;
+    display: flex;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.fullscreen-chat-panel {
+    width: 25%;
+    min-width: 280px;
+    max-width: 400px;
+    background: #fafbfc;
+    border-right: 1px solid #e8e8e8;
+    display: flex;
+    flex-direction: column;
+}
+
+.fullscreen-chat-header {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fullscreen-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fullscreen-chat-message {
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 90%;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.fullscreen-chat-message.user {
+    background: #667eea;
+    color: #fff;
+    align-self: flex-end;
+}
+
+.fullscreen-chat-message.assistant {
+    background: #f0f2f5;
+    color: #333;
+    align-self: flex-start;
+}
+
+.fullscreen-chat-input {
+    padding: 12px;
+    border-top: 1px solid #e8e8e8;
+    background: #fff;
+}
+
+.fullscreen-chat-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.fullscreen-editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+    /* Ensure container takes full height */
+    height: 100%;
+}
+
+.fullscreen-exit-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+}
+
+.fullscreen-direct-mode {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+}

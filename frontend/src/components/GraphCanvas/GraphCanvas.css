@@ -1,0 +1,166 @@
+.graph-canvas {
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 20% 10%, rgba(59, 130, 246, 0.12), transparent 45%),
+        radial-gradient(circle at 80% 20%, rgba(96, 165, 250, 0.12), transparent 40%),
+        repeating-linear-gradient(0deg, rgba(148, 163, 184, 0.08) 0, rgba(148, 163, 184, 0.08) 1px, transparent 1px, transparent 40px),
+        repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.08) 0, rgba(148, 163, 184, 0.08) 1px, transparent 1px, transparent 40px),
+        var(--color-bg);
+    position: relative;
+    overflow: hidden;
+}
+
+.graph-canvas svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.empty-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--color-muted);
+    padding: 24px 28px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    animation: fadeIn var(--motion-slow) ease;
+}
+
+.empty-state .empty-icon {
+    font-size: 28px;
+    letter-spacing: 6px;
+    margin-bottom: 12px;
+    color: var(--color-primary);
+}
+
+.empty-state h3 {
+    margin: 0 0 8px 0;
+    color: var(--color-text);
+}
+
+.empty-state p {
+    margin: 0;
+    color: var(--color-muted);
+}
+
+/* Edge styles */
+.edge {
+    transition: opacity var(--motion-fast) ease, stroke-width var(--motion-fast) ease;
+}
+
+.edge:hover {
+    opacity: 1 !important;
+    stroke-width: 4 !important;
+}
+
+/* Node styles - NO transform transition to prevent trembling */
+.node {
+    /* Intentionally minimal to prevent trembling */
+    cursor: pointer;
+}
+
+.node-circle {
+    transition: stroke var(--motion-fast) ease, stroke-width var(--motion-fast) ease;
+}
+
+.node-label {
+    user-select: none;
+    font-family: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif;
+}
+
+.node-year {
+    user-select: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Legend */
+.legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 14px 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-soft);
+    font-size: 13px;
+    min-width: 140px;
+}
+
+.legend-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    color: var(--color-muted);
+}
+
+.legend-arrow {
+    font-size: 18px;
+    font-weight: bold;
+    width: 24px;
+    text-align: center;
+}
+
+.legend-arrow.support {
+    color: #22c55e;
+}
+
+.legend-arrow.oppose {
+    color: #ef4444;
+}
+
+.legend-arrow.neutral {
+    color: #6b7280;
+}
+
+.legend-arrow.unknown {
+    color: #9ca3af;
+}
+
+.legend-note {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
+    font-size: 11px;
+    color: var(--color-muted);
+}
+
+/* Stats */
+.stats {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-soft);
+    font-size: 13px;
+    color: var(--color-muted);
+    font-weight: 500;
+}
+
+.legend,
+.stats {
+    backdrop-filter: blur(8px);
+}
+
+/* Tooltip on hover - optional enhancement */
+.node:hover .node-label {
+    font-weight: 600;
+    fill: #1f2937;
+}
