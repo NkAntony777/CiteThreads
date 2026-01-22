@@ -1,6 +1,6 @@
 # 引脉 (CiteThreads) - 学术引用脉络可视化与智能写作助手
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/NkAntony777/CiteThreads) ![License](https://img.shields.io/badge/license-MIT-green) ![React](https://img.shields.io/badge/frontend-React-61DAFB) ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/NkAntony777/CiteThreads) ![License](https://img.shields.io/badge/license-MIT-green) ![React](https://img.shields.io/badge/frontend-React-61DAFB) ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
 
 > **深入探索文献关系，无缝辅助学术写作**
 >
@@ -41,6 +41,10 @@ CiteThreads 全自动爬取并整合 **OpenAlex**, **Semantic Scholar**, **ArXiv
 - **实时预览**：快速查看论文摘要、引用数与发表信息。
 
 ![Union Search](docs/assets/搜索.png)
+
+### 4. 🌍 多语言支持 (Multi-language Support)
+系统支持中英文实时切换，为全球研究者提供无障碍的操作体验。
+
 
 ---
 

@@ -42,6 +42,10 @@ Break down data source barriers and get academic resources from the whole web in
 
 ![Union Search](docs/assets/搜索.png)
 
+### 4. 🌍 Multi-language Support
+Real-time switching between Chinese and English, providing an accessible experience for researchers worldwide.
+
+
 ---
 
 ## 🛠️ Tech Stack
