@@ -10,7 +10,6 @@ import {
     DownloadOutlined,
     GithubOutlined,
     SettingOutlined,
-    QuestionCircleOutlined,
     FolderOutlined,
     RobotOutlined,
     ShareAltOutlined,
@@ -158,9 +157,6 @@ const App: React.FC = () => {
                                 icon={<SettingOutlined />}
                                 onClick={() => setSettingsVisible(true)}
                             />
-                        </Tooltip>
-                        <Tooltip title={t('app.help')}>
-                            <Button type="text" icon={<QuestionCircleOutlined />} />
                         </Tooltip>
                         <Tooltip title="GitHub">
                             <Button
