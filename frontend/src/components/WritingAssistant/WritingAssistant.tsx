@@ -3,6 +3,7 @@
  * Combines literature review and AI writing capabilities
  */
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Layout,
     Typography,
@@ -63,6 +64,8 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
     graphNodes,
     onBack,
 }) => {
+    const { t } = useTranslation();
+
     // References state
     const [references, setReferences] = useState<Reference[]>([]);
     const [loadingRefs, setLoadingRefs] = useState(false);
@@ -131,7 +134,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                 }
             } catch (error) {
                 console.error('Failed to load writing data:', error);
-                message.error('加载数据失败');
+                message.error(t('writingAssistant.loadDataFailed'));
             } finally {
                 setLoadingRefs(false);
             }
@@ -140,7 +143,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
         if (projectId) {
             loadData();
         }
-    }, [projectId]);
+    }, [projectId, t]);
 
     // Save Review Content (Debounced)
     useEffect(() => {
@@ -185,29 +188,29 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
         try {
             const result = await writingApi.addReference(projectId, paper.id, 'graph');
             if (result.success) {
-                message.success(`已添加: ${paper.title.slice(0, 30)}...`);
+                message.success(`${t('writingAssistant.addedRef')} ${paper.title.slice(0, 30)}...`);
                 loadReferences();
             } else {
-                message.warning(result.message || '该文献已存在');
+                message.warning(result.message || t('writingAssistant.refExists'));
             }
         } catch (error) {
-            message.error('添加失败');
+            message.error(t('writingAssistant.addFailed'));
         }
     };
 
     const handleRemoveReference = async (refId: string) => {
         try {
             await writingApi.removeReference(projectId, refId);
-            message.success('已移除');
+            message.success(t('writingAssistant.removed'));
             loadReferences();
         } catch (error) {
-            message.error('移除失败');
+            message.error(t('writingAssistant.removeFailed'));
         }
     };
 
     const handleGenerateReview = async () => {
         if (references.length === 0) {
-            message.warning('请先添加参考文献');
+            message.warning(t('writingAssistant.pleaseAddRefs'));
             return;
         }
 
@@ -221,10 +224,10 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
             );
             if (result.success) {
                 setReviewContent(result.review.content);
-                message.success('文献综述生成成功');
+                message.success(t('writingAssistant.reviewGenerated'));
             }
         } catch (error: any) {
-            message.error(error?.response?.data?.detail || '生成失败，请检查AI配置');
+            message.error(error?.response?.data?.detail || t('writingAssistant.generateFailed'));
         } finally {
             setGeneratingReview(false);
         }
@@ -248,7 +251,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
             if (result.success) {
                 const assistantContent = result.message?.content || '';
                 if (!assistantContent) {
-                    throw new Error('AI 返回内容为空');
+                    throw new Error(t('writingAssistant.aiReturnEmpty'));
                 }
 
                 setChatHistory(prev => [...prev, {
@@ -273,13 +276,13 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
             console.error('Chat error details:', error);
             const errorDetail = error?.response?.data?.detail
                 || error?.message
-                || (typeof error === 'string' ? error : '未知错误');
+                || (typeof error === 'string' ? error : t('writingAssistant.unknownError'));
 
-            message.error('AI回复失败: ' + errorDetail);
+            message.error(t('writingAssistant.aiReplyFailed') + errorDetail);
 
             setChatHistory(prev => [...prev, {
                 role: 'assistant',
-                content: `抱歉，发生错误: ${errorDetail}。\n请检查控制台获取更多详细信息。`
+                content: `${t('writingAssistant.sorryError')}${errorDetail}\n${t('writingAssistant.checkConsole')}`
             }]);
         } finally {
             setChatLoading(false);
@@ -290,11 +293,11 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
         try {
             const result = await writingApi.addReferenceFromSearch(projectId, paper);
             if (result.success) {
-                message.success('已添加到参考文献');
+                message.success(t('writingAssistant.addedToRefs'));
                 loadReferences();
             }
         } catch (error) {
-            message.error('添加失败');
+            message.error(t('writingAssistant.addFailed'));
         }
     };
 
@@ -307,10 +310,10 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                         icon={<ArrowLeftOutlined />}
                         onClick={onBack}
                     >
-                        返回图谱
+                        {t('writingAssistant.backToGraph')}
                     </Button>
                     <Title level={4} style={{ margin: 0, color: '#fff' }}>
-                        <RobotOutlined /> AI论文写作助手
+                        <RobotOutlined /> {t('app.aiWritingAssistant')}
                     </Title>
                 </Space>
                 <Space>
@@ -318,14 +321,14 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                         icon={<SearchOutlined />}
                         onClick={() => setSearchModalVisible(true)}
                     >
-                        搜索论文
+                        {t('writingAssistant.searchPapers')}
                     </Button>
                     <Button
                         icon={<DownloadOutlined />}
                         href={writingApi.exportBibtexUrl(projectId)}
                         target="_blank"
                     >
-                        导出BibTeX
+                        {t('writingAssistant.exportBibtex')}
                     </Button>
                 </Space>
             </Header>
@@ -335,20 +338,20 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                 <Sider width={300} className="ref-sider">
                     <div className="sider-header">
                         <Title level={5}>
-                            <BookOutlined /> 参考文献 ({references.length})
+                            <BookOutlined /> {t('writingAssistant.references')} ({references.length})
                         </Title>
                     </div>
 
                     <div className="ref-list">
                         {loadingRefs ? (
-                            <Spin tip="加载中..." />
+                            <Spin tip={t('common.loading')} />
                         ) : references.length === 0 ? (
                             <Empty
-                                description="暂无参考文献"
+                                description={t('writingAssistant.noReferences')}
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                             >
                                 <Text type="secondary">
-                                    点击下方论文添加到参考文献
+                                    {t('writingAssistant.clickToAddRef')}
                                 </Text>
                             </Empty>
                         ) : (
@@ -359,7 +362,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                     <List.Item
                                         actions={[
                                             <Popconfirm
-                                                title="确定要移除这篇文献吗？"
+                                                title={t('writingAssistant.removeRefConfirm')}
                                                 onConfirm={() => handleRemoveReference(ref.id)}
                                             >
                                                 <Button
@@ -393,7 +396,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
 
                     {/* Available papers from graph */}
                     <div className="graph-papers">
-                        <Title level={5}>图谱论文</Title>
+                        <Title level={5}>{t('writingAssistant.graphPapers')}</Title>
                         <List
                             size="small"
                             dataSource={graphNodes}
@@ -424,7 +427,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                 <Content className="writing-content">
                     <Tabs activeKey={activeTab} onChange={setActiveTab}>
                         <TabPane
-                            tab={<span><FileTextOutlined />文献综述</span>}
+                            tab={<span><FileTextOutlined />{t('writingAssistant.literatureReview')}</span>}
                             key="review"
                         >
                             <div className="review-section">
@@ -435,9 +438,9 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                             onChange={setReviewStyle}
                                             style={{ width: 120 }}
                                         >
-                                            <Select.Option value="academic">学术风格</Select.Option>
-                                            <Select.Option value="concise">简洁风格</Select.Option>
-                                            <Select.Option value="detailed">详细风格</Select.Option>
+                                            <Select.Option value="academic">{t('writingAssistant.academicStyle')}</Select.Option>
+                                            <Select.Option value="concise">{t('writingAssistant.conciseStyle')}</Select.Option>
+                                            <Select.Option value="detailed">{t('writingAssistant.detailedStyle')}</Select.Option>
                                         </Select>
                                         <Button
                                             type="primary"
@@ -445,7 +448,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                             loading={generatingReview}
                                             onClick={handleGenerateReview}
                                         >
-                                            生成文献综述
+                                            {t('writingAssistant.generateReview')}
                                         </Button>
                                     </Space>
                                 </div>
@@ -457,7 +460,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                         </Card>
                                     ) : (
                                         <Empty
-                                            description="添加参考文献后点击生成"
+                                            description={t('writingAssistant.addRefsThenGenerate')}
                                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                                         />
                                     )}
@@ -466,7 +469,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                         </TabPane>
 
                         <TabPane
-                            tab={<span><RobotOutlined />AI写作</span>}
+                            tab={<span><RobotOutlined />{t('writingAssistant.aiWriting')}</span>}
                             key="writing"
                         >
                             <div className="chat-section">
@@ -475,8 +478,8 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                         <Empty
                                             description={
                                                 <div>
-                                                    <p>开始与AI助手对话</p>
-                                                    <p>你可以说："帮我找一下关于XXX的论文"</p>
+                                                    <p>{t('writingAssistant.startChatWithAi')}</p>
+                                                    <p>{t('writingAssistant.chatExample')}</p>
                                                 </div>
                                             }
                                             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -491,7 +494,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                                     {msg.role === 'assistant' ? (
                                                         <>
                                                             <ReactMarkdown>{msg.content}</ReactMarkdown>
-                                                            <Tooltip title="插入到画布">
+                                                            <Tooltip title={t('writingAssistant.insertToCanvas')}>
                                                                 <Button
                                                                     type="text"
                                                                     size="small"
@@ -501,7 +504,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                                                         if (canvasEditorRef.current) {
                                                                             canvasEditorRef.current.insertContent(msg.content);
                                                                         } else {
-                                                                            message.warning('编辑器未连接');
+                                                                            message.warning(t('writingAssistant.editorNotConnected'));
                                                                         }
                                                                     }}
                                                                 />
@@ -516,7 +519,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                     )}
                                     {chatLoading && (
                                         <div className="chat-message assistant loading">
-                                            <Spin tip="AI思考中..." />
+                                            <Spin tip={t('writingAssistant.aiThinking')} />
                                         </div>
                                     )}
                                 </div>
@@ -524,7 +527,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                 {/* Paper suggestions */}
                                 {paperSuggestions.length > 0 && (
                                     <div className="paper-suggestions">
-                                        <Title level={5}>找到的论文：</Title>
+                                        <Title level={5}>{t('writingAssistant.foundPapers')}</Title>
                                         <List
                                             size="small"
                                             dataSource={paperSuggestions}
@@ -535,7 +538,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                                             size="small"
                                                             onClick={() => handleAddFromSearch(paper)}
                                                         >
-                                                            添加
+                                                            {t('common.add')}
                                                         </Button>
                                                     ]}
                                                 >
@@ -557,14 +560,14 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                             onChange={setDirectToCanvas}
                                         />
                                         <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                                            直接写入画布
+                                            {t('writingAssistant.directToCanvas')}
                                         </Text>
                                     </div>
                                     <Input.Group compact style={{ display: 'flex' }}>
                                         <TextArea
                                             value={chatInput}
                                             onChange={(e) => setChatInput(e.target.value)}
-                                            placeholder="输入消息，例如：帮我写introduction部分"
+                                            placeholder={t('writingAssistant.chatPlaceholder')}
                                             autoSize={{ minRows: 1, maxRows: 4 }}
                                             onPressEnter={(e) => {
                                                 if (!e.shiftKey) {
@@ -580,7 +583,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                             onClick={handleChatSend}
                                             loading={chatLoading}
                                         >
-                                            发送
+                                            {t('common.send')}
                                         </Button>
                                     </Input.Group>
                                 </div>
@@ -601,7 +604,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
 
             {/* Search Modal */}
             <Modal
-                title="搜索论文"
+                title={t('writingAssistant.searchPapersModal')}
                 open={searchModalVisible}
                 onCancel={() => setSearchModalVisible(false)}
                 footer={null}
@@ -612,7 +615,6 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                     projectId={projectId}
                     onAddReference={handleAddFromSearch}
                     limit={15}
-                    placeholder="输入关键词搜索论文并添加到参考文献..."
                 />
             </Modal>
 

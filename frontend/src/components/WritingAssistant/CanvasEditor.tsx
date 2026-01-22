@@ -3,6 +3,7 @@
  * Uses Vditor in instant rendering mode
  */
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Tooltip, message, Spin, Space } from 'antd';
 import { SaveOutlined, ThunderboltOutlined, EditOutlined, ExportOutlined, ExpandOutlined } from '@ant-design/icons';
 import Vditor from 'vditor';
@@ -21,6 +22,7 @@ interface CanvasEditorProps {
 }
 
 const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projectId, onFullscreen }, ref) => {
+    const { t, i18n } = useTranslation();
     const vditorRef = useRef<Vditor | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
@@ -43,14 +45,14 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
                     const newContent = vditorRef.current.getValue();
                     localStorage.setItem(`canvas_draft_${projectId}`, newContent);
 
-                    message.success('已插入到画布');
+                    message.success(t('canvasEditor.insertedToCanvas'));
                 } catch (e) {
                     console.error('CanvasEditor: insert failed', e);
-                    message.error('插入失败: ' + e);
+                    message.error(t('canvasEditor.insertFailed') + e);
                 }
             } else {
                 console.warn('CanvasEditor: Vditor instance not found');
-                message.warning('编辑器未就绪');
+                message.warning(t('canvasEditor.editorNotReady'));
             }
         },
         getValue: () => vditorRef.current?.getValue() || ''
@@ -78,15 +80,16 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
                 const localContent = localStorage.getItem(`canvas_draft_${projectId}`);
                 if (localContent) {
                     initialContent = localContent;
-                    message.info('已恢复本地未保存的草稿');
+                    message.info(t('canvasEditor.restoredDraft'));
                 }
             }
 
             vditorRef.current = new Vditor('vditor-container', {
                 mode: 'ir',
                 height: '100%',
+                lang: i18n.language === 'en-US' ? 'en_US' : 'zh_CN',
                 cache: { enable: false }, // We handle caching manually
-                placeholder: '在这里撰写你的论文...\n\n支持 Markdown 语法，使用 [@引用键] 格式添加引用。',
+                placeholder: t('canvasEditor.placeholder'),
                 toolbar: [
                     'headings', 'bold', 'italic', 'strike', '|',
                     'quote', 'list', 'ordered-list', 'check', '|',
@@ -122,7 +125,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
             }
             vditorRef.current?.destroy();
         };
-    }, [projectId]);
+    }, [projectId, i18n.language, t]);
 
     const handleAutoSave = async (content: string) => {
         setSaving(true);
@@ -131,7 +134,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
             // On success, maybe verify against local? For now, we keep both.
         } catch (e) {
             console.error('Auto-save failed:', e);
-            message.warning('云端保存失败，内容已保存在本地', 2);
+            message.warning(t('canvasEditor.cloudSaveFailed'), 2);
         } finally {
             setSaving(false);
         }
@@ -145,9 +148,9 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
         setSaving(true);
         try {
             await writingApi.saveCanvas(projectId, content);
-            message.success('保存成功');
+            message.success(t('canvasEditor.saveSuccess'));
         } catch (e) {
-            message.error('云端保存失败，已更新本地备份');
+            message.error(t('canvasEditor.cloudSaveFailedLocal'));
         } finally {
             setSaving(false);
         }
@@ -197,7 +200,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
     const handleAIAction = async (type: 'continue' | 'polish') => {
         if (!selectedText) return;
         setMenuVisible(false);
-        const hide = message.loading('AI 正在思考...', 0);
+        const hide = message.loading(t('canvasEditor.aiThinking'), 0);
 
         try {
             // TODO: Call AI API
@@ -208,9 +211,9 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
             } else {
                 vditorRef.current?.updateValue(`[润色] ${selectedText}`);
             }
-            message.success('AI 处理完成');
+            message.success(t('canvasEditor.aiComplete'));
         } catch (e) {
-            message.error('AI 处理失败');
+            message.error(t('canvasEditor.aiFailed'));
         } finally {
             hide();
         }
@@ -219,7 +222,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
     const handleExport = () => {
         const content = vditorRef.current?.getValue();
         if (!content) {
-            message.warning('画布内容为空');
+            message.warning(t('canvasEditor.canvasEmpty'));
             return;
         }
 
@@ -232,43 +235,43 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        message.success('导出成功');
+        message.success(t('canvasEditor.exportSuccess'));
     };
 
     return (
         <div className="canvas-editor" ref={containerRef}>
             <div className="canvas-toolbar">
-                <span className="canvas-title">📝 论文画布</span>
+                <span className="canvas-title">📝 {t('canvasEditor.title')}</span>
                 <div className="canvas-actions">
                     {saving && <Spin size="small" />}
                     <Space>
-                        <Tooltip title="导出为 Markdown">
+                        <Tooltip title={t('canvasEditor.exportTooltip')}>
                             <Button
                                 size="small"
                                 icon={<ExportOutlined />}
                                 onClick={handleExport}
                             >
-                                导出
+                                {t('canvasEditor.export')}
                             </Button>
                         </Tooltip>
-                        <Tooltip title="手动保存 (自动保存已开启)">
+                        <Tooltip title={t('canvasEditor.saveTooltip')}>
                             <Button
                                 size="small"
                                 icon={<SaveOutlined />}
                                 onClick={handleManualSave}
                                 loading={saving}
                             >
-                                保存
+                                {t('canvasEditor.save')}
                             </Button>
                         </Tooltip>
                         {onFullscreen && (
-                            <Tooltip title="全屏模式 (带 AI 聊天)">
+                            <Tooltip title={t('canvasEditor.fullscreenTooltip')}>
                                 <Button
                                     size="small"
                                     icon={<ExpandOutlined />}
                                     onClick={onFullscreen}
                                 >
-                                    全屏
+                                    {t('canvasEditor.fullscreen')}
                                 </Button>
                             </Tooltip>
                         )}
@@ -277,7 +280,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
             </div>
             {loading && (
                 <div className="canvas-loading">
-                    <Spin tip="加载编辑器..." />
+                    <Spin tip={t('canvasEditor.loading')} />
                 </div>
             )}
             <div id="vditor-container" style={{ display: loading ? 'none' : 'block' }} />
@@ -306,7 +309,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
                             icon={<ThunderboltOutlined style={{ color: '#1890ff' }} />}
                             onClick={() => handleAIAction('continue')}
                         >
-                            AI 续写
+                            {t('canvasEditor.aiContinue')}
                         </Button>
                         <Button
                             type="text"
@@ -314,7 +317,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
                             icon={<EditOutlined style={{ color: '#52c41a' }} />}
                             onClick={() => handleAIAction('polish')}
                         >
-                            AI 润色
+                            {t('canvasEditor.aiPolish')}
                         </Button>
                     </Space>
                 </div>

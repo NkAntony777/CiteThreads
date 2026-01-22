@@ -2,6 +2,7 @@
  * NodePanel Component - Paper detail sidebar
  */
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     FileTextOutlined,
     TeamOutlined,
@@ -17,6 +18,7 @@ import './NodePanel.css';
 const { Paragraph, Text } = Typography;
 
 export const NodePanel: React.FC = () => {
+    const { t } = useTranslation();
     const {
         selectedNode,
         setSelectedNode,
@@ -59,7 +61,7 @@ export const NodePanel: React.FC = () => {
             title={
                 <div className="panel-header">
                     <FileTextOutlined style={{ marginRight: 8 }} />
-                    论文详情
+                    {t('nodePanel.title')}
                 </div>
             }
             placement="right"
@@ -74,7 +76,7 @@ export const NodePanel: React.FC = () => {
                     onClick={handleOpenUrl}
                     disabled={!selectedNode.url && !selectedNode.doi}
                 >
-                    查看原文
+                    {t('nodePanel.viewOriginal')}
                 </Button>
             }
         >
@@ -89,7 +91,7 @@ export const NodePanel: React.FC = () => {
                     <TeamOutlined style={{ marginRight: 8 }} />
                     <Text type="secondary">
                         {selectedNode.authors.length > 5
-                            ? selectedNode.authors.slice(0, 5).join(', ') + ` 等 ${selectedNode.authors.length} 位作者`
+                            ? selectedNode.authors.slice(0, 5).join(', ') + ` ${t('nodePanel.authors', { count: selectedNode.authors.length })}`
                             : selectedNode.authors.join(', ')
                         }
                     </Text>
@@ -99,8 +101,8 @@ export const NodePanel: React.FC = () => {
                 <Space className="tags-section" wrap>
                     {selectedNode.year && <Tag color="blue">{selectedNode.year}</Tag>}
                     {selectedNode.venue && <Tag>{selectedNode.venue}</Tag>}
-                    <Tag color="green">被引 {selectedNode.citation_count}</Tag>
-                    <Tag color="orange">引用 {selectedNode.reference_count}</Tag>
+                    <Tag color="green">{t('paperSearch.cited')} {selectedNode.citation_count}</Tag>
+                    <Tag color="orange">{t('searchBar.cited')} {selectedNode.reference_count}</Tag>
                 </Space>
 
                 <Divider />
@@ -108,9 +110,9 @@ export const NodePanel: React.FC = () => {
                 {/* Abstract */}
                 {selectedNode.abstract && (
                     <>
-                        <div className="section-title">摘要</div>
+                        <div className="section-title">{t('nodePanel.abstract')}</div>
                         <Paragraph
-                            ellipsis={{ rows: 6, expandable: true, symbol: '展开' }}
+                            ellipsis={{ rows: 6, expandable: true, symbol: t('nodePanel.expand') }}
                             className="abstract-text"
                         >
                             {selectedNode.abstract}
@@ -122,7 +124,7 @@ export const NodePanel: React.FC = () => {
                 {/* Fields */}
                 {selectedNode.fields.length > 0 && (
                     <>
-                        <div className="section-title">研究领域</div>
+                        <div className="section-title">{t('nodePanel.researchFields')}</div>
                         <Space wrap>
                             {selectedNode.fields.map((field, index) => (
                                 <Tag key={index} color="purple">{field}</Tag>
@@ -133,19 +135,19 @@ export const NodePanel: React.FC = () => {
                 )}
 
                 {/* Citation Stats in Graph */}
-                <div className="section-title">图谱中的引用关系</div>
+                <div className="section-title">{t('nodePanel.citationInGraph')}</div>
                 <Descriptions column={1} size="small">
-                    <Descriptions.Item label="被引用次数（图谱内）">
+                    <Descriptions.Item label={t('nodePanel.citedInGraph')}>
                         <Tag color="cyan">{incomingEdges.length}</Tag>
                     </Descriptions.Item>
-                    <Descriptions.Item label="引用论文数（图谱内）">
+                    <Descriptions.Item label={t('nodePanel.referencesInGraph')}>
                         <Tag color="magenta">{outgoingEdges.length}</Tag>
                     </Descriptions.Item>
                 </Descriptions>
 
                 {/* IDs */}
                 <Divider />
-                <div className="section-title">标识符</div>
+                <div className="section-title">{t('nodePanel.identifiers')}</div>
                 <Descriptions column={1} size="small">
                     {selectedNode.doi && (
                         <Descriptions.Item label="DOI">
@@ -161,7 +163,7 @@ export const NodePanel: React.FC = () => {
                             </a>
                         </Descriptions.Item>
                     )}
-                    <Descriptions.Item label="内部ID">
+                    <Descriptions.Item label={t('nodePanel.internalId')}>
                         <Text code copyable={{ text: selectedNode.id }}>
                             {selectedNode.id.length > 20 ? selectedNode.id.slice(0, 20) + '...' : selectedNode.id}
                         </Text>
@@ -173,18 +175,18 @@ export const NodePanel: React.FC = () => {
 
             <div style={{ padding: '0 0 16px 0', textAlign: 'center' }}>
                 <Popconfirm
-                    title="删除节点"
-                    description="确定要从项目中删除这篇论文吗？此操作不可恢复。"
+                    title={t('nodePanel.deleteNode')}
+                    description={t('nodePanel.deleteNodeConfirm')}
                     onConfirm={() => {
                         deleteNode(selectedNode.id);
                         handleClose();
                     }}
-                    okText="删除"
-                    cancelText="取消"
+                    okText={t('common.delete')}
+                    cancelText={t('common.cancel')}
                     okButtonProps={{ danger: true }}
                 >
                     <Button danger icon={<DeleteOutlined />}>
-                        删除此节点
+                        {t('nodePanel.deleteThisNode')}
                     </Button>
                 </Popconfirm>
             </div>

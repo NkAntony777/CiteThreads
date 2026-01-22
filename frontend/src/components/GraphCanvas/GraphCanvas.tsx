@@ -3,6 +3,7 @@
  * Improved version with better layout, arrows, and interactions
  */
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as d3 from 'd3';
 import { useGraphStore } from '../../stores/graphStore';
 import type { GraphNode, CitationIntent } from '../../types';
@@ -20,6 +21,7 @@ const INTENT_COLORS: Record<CitationIntent, string> = {
 
 
 export const GraphCanvas: React.FC = () => {
+    const { t } = useTranslation();
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -150,7 +152,7 @@ export const GraphCanvas: React.FC = () => {
 
         // Add tooltip for edge reasoning
         edgeSelection.append('title')
-            .text(d => `${d.intent}\n${d.reasoning || '无详细说明'}`);
+            .text(d => `${d.intent}\n${d.reasoning || t('graphCanvas.noDetail')}`);
 
         // Draw nodes - NO hover transform to prevent trembling
         const nodeGroup = g.append('g').attr('class', 'nodes');
@@ -226,7 +228,7 @@ export const GraphCanvas: React.FC = () => {
             setSelectedEdge(null); // Deselect edges too
         });
 
-    }, [visibleNodes, visibleLinks, clusters, paperClusters, setSelectedNode, setHoveredNode, setSelectedEdge]);
+    }, [visibleNodes, visibleLinks, clusters, paperClusters, setSelectedNode, setHoveredNode, setSelectedEdge, t]);
 
     // Initial render
     useEffect(() => {
@@ -285,47 +287,47 @@ export const GraphCanvas: React.FC = () => {
             {nodes.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-icon">--</div>
-                    <h3>引用图谱可视化</h3>
-                    <p>搜索论文并构建图谱后，这里将显示引用关系网络</p>
+                    <h3>{t('graphCanvas.emptyTitle')}</h3>
+                    <p>{t('graphCanvas.emptyDescription')}</p>
                 </div>
             ) : visibleNodes.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-icon">--</div>
-                    <h3>当前筛选无结果</h3>
-                    <p>可尝试重置筛选或扩大范围。</p>
+                    <h3>{t('graphCanvas.filterNoResult')}</h3>
+                    <p>{t('graphCanvas.filterHint')}</p>
                 </div>
             ) : (
                 <>
                     <svg ref={svgRef} />
                     <div className="legend">
-                        <div className="legend-title">引用意图</div>
+                        <div className="legend-title">{t('graphCanvas.legendTitle')}</div>
                         <div className="legend-item">
                             <span className="legend-arrow support">→</span>
-                            <span>支持/继承</span>
+                            <span>{t('graphCanvas.support')}</span>
                         </div>
                         <div className="legend-item">
                             <span className="legend-arrow oppose">→</span>
-                            <span>反驳/修正</span>
+                            <span>{t('graphCanvas.oppose')}</span>
                         </div>
                         <div className="legend-item">
                             <span className="legend-arrow neutral">→</span>
-                            <span>中性提及</span>
+                            <span>{t('graphCanvas.neutral')}</span>
                         </div>
                         <div className="legend-item">
                             <span className="legend-arrow unknown">⇢</span>
-                            <span>未分类</span>
+                            <span>{t('graphCanvas.unknown')}</span>
                         </div>
                         <div className="legend-note">
-                            箭头方向: 引用方 → 被引方
+                            {t('graphCanvas.arrowNote')}
                         </div>
                         {clusters.length > 0 && (
                             <div className="legend-note" style={{ color: '#faad14', marginTop: 4 }}>
-                                * 节点颜色表示所属流派
+                                {t('graphCanvas.clusterNote')}
                             </div>
                         )}
                     </div>
                     <div className="stats">
-                        {visibleNodes.length} 篇论文 · {visibleLinks.length} 条引用
+                        {visibleNodes.length}{t('graphCanvas.papers')} · {visibleLinks.length}{t('graphCanvas.citations')}
                     </div>
                 </>
             )}

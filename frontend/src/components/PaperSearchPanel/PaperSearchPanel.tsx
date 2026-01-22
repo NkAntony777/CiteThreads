@@ -3,6 +3,7 @@
  * Used by both main SearchBar (graph building) and WritingAssistant (reference adding)
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Input, Button, List, Tag, Space, Empty, Spin, message } from 'antd';
 import { SearchOutlined, PlusOutlined, PartitionOutlined } from '@ant-design/icons';
 import type { Paper } from '../../types';
@@ -36,13 +37,16 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
     onSelectForGraph,
     onAddReference,
     limit = 10,
-    placeholder = '输入关键词搜索论文...',
+    placeholder,
     compact = false,
 }) => {
+    const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Paper[]>([]);
     const [searching, setSearching] = useState(false);
     const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
+
+    const actualPlaceholder = placeholder || t('paperSearch.placeholder');
 
     const handleSearch = async (query?: string) => {
         const q = query || searchQuery;
@@ -55,11 +59,11 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
             const result = await writingApi.searchPapersUnified(q, limit);
             setSearchResults(result.papers || []);
             if (result.papers?.length === 0) {
-                message.info('未找到相关论文，请尝试其他关键词');
+                message.info(t('paperSearch.noResults'));
             }
         } catch (error) {
             console.error('Search failed:', error);
-            message.error('搜索失败，请重试');
+            message.error(t('paperSearch.searchFailed'));
         } finally {
             setSearching(false);
         }
@@ -71,7 +75,7 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
             onSelectForGraph?.(paper);
         } else {
             onAddReference?.(paper);
-            message.success(`已添加: ${paper.title.slice(0, 30)}...`);
+            message.success(`${t('paperSearch.added')} ${paper.title.slice(0, 30)}...`);
         }
     };
 
@@ -84,7 +88,7 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
                     icon={<PartitionOutlined />}
                     onClick={() => handleAction(paper)}
                 >
-                    {selectedPaper?.id === paper.id ? '已选择' : '选择'}
+                    {selectedPaper?.id === paper.id ? t('paperSearch.selected') : t('paperSearch.select')}
                 </Button>
             );
         }
@@ -95,7 +99,7 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
                 icon={<PlusOutlined />}
                 onClick={() => handleAction(paper)}
             >
-                添加引用
+                {t('paperSearch.addRef')}
             </Button>
         );
     };
@@ -104,8 +108,8 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
         <div className={`paper-search-panel ${compact ? 'compact' : ''}`}>
             <div className="search-input-row">
                 <Search
-                    placeholder={placeholder}
-                    enterButton={<><SearchOutlined /> 搜索</>}
+                    placeholder={actualPlaceholder}
+                    enterButton={<><SearchOutlined /> {t('common.search')}</>}
                     size={compact ? 'middle' : 'large'}
                     loading={searching}
                     value={searchQuery}
@@ -116,14 +120,14 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
             </div>
 
             <div className="search-tip">
-                支持 DOI、arXiv ID 或标题关键词。数据源：OpenAlex、arXiv、DBLP、PubMed
+                {t('paperSearch.searchTip')}
             </div>
 
             {/* Search Results */}
             <div className="search-results">
                 {searching ? (
                     <div className="search-loading">
-                        <Spin tip="正在搜索多个数据源..." />
+                        <Spin tip={t('paperSearch.searchingSources')} />
                     </div>
                 ) : searchResults.length > 0 ? (
                     <List
@@ -152,7 +156,7 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
                                                 {(paper.authors?.length || 0) > 2 ? ' et al.' : ''}
                                             </span>
                                             {paper.year && <Tag color="blue">{paper.year}</Tag>}
-                                            <Tag color="green">被引 {paper.citation_count || 0}</Tag>
+                                            <Tag color="green">{t('paperSearch.cited')} {paper.citation_count || 0}</Tag>
                                             {paper.venue && (
                                                 <Tag>{paper.venue.slice(0, 20)}</Tag>
                                             )}
@@ -164,7 +168,7 @@ export const PaperSearchPanel: React.FC<PaperSearchPanelProps> = ({
                     />
                 ) : searchQuery && !searching ? (
                     <Empty
-                        description="输入关键词开始搜索"
+                        description={t('paperSearch.startSearch')}
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                     />
                 ) : null}

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, Slider, Select, Space, Button, Typography } from 'antd';
 import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useGraphStore } from '../../stores/graphStore';
@@ -15,6 +16,7 @@ const INTENT_OPTIONS: { value: CitationIntent; label: string }[] = [
 ];
 
 export const GraphFilters: React.FC = () => {
+    const { t } = useTranslation();
     const {
         nodes,
         yearRange,
@@ -41,7 +43,7 @@ export const GraphFilters: React.FC = () => {
             title={
                 <Space>
                     <FilterOutlined />
-                    <span>筛选</span>
+                    <span>{t('graphFilters.title')}</span>
                 </Space>
             }
             extra={
@@ -55,12 +57,12 @@ export const GraphFilters: React.FC = () => {
                         setIntentFilter([]);
                     }}
                 >
-                    重置
+                    {t('common.reset')}
                 </Button>
             }
         >
             <div className="filter-section">
-                <Text type="secondary">年份范围</Text>
+                <Text type="secondary">{t('graphFilters.yearRange')}</Text>
                 <Slider
                     range
                     min={yearExtent ? yearExtent[0] : 0}
@@ -69,15 +71,15 @@ export const GraphFilters: React.FC = () => {
                     onChange={(value) => setYearRange(value as [number, number])}
                     disabled={!yearExtent}
                 />
-                {!yearExtent && <div className="filter-hint">暂无年份数据。</div>}
+                {!yearExtent && <div className="filter-hint">{t('graphFilters.noYearData')}</div>}
             </div>
 
             <div className="filter-section">
-                <Text type="secondary">引用意图</Text>
+                <Text type="secondary">{t('graphFilters.citationIntent')}</Text>
                 <Select
                     mode="multiple"
                     allowClear
-                    placeholder="全部意图"
+                    placeholder={t('graphFilters.allIntents')}
                     options={INTENT_OPTIONS}
                     value={intentFilter}
                     onChange={(values) => setIntentFilter(values as CitationIntent[])}

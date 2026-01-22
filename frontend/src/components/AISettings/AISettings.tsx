@@ -1,18 +1,20 @@
 /**
  * AISettings Component - AI Service Provider Configuration Panel
- * Supports Chat models
+ * Supports Chat models and Language switching
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-    Drawer, Form, Select, Input, Button, Space, Alert, Tag, Typography, message, Tabs
+    Drawer, Form, Select, Input, Button, Space, Alert, Tag, Typography, message, Tabs, Divider
 } from 'antd';
 import {
     SettingOutlined, CheckCircleOutlined, ApiOutlined,
-    SaveOutlined, DeleteOutlined, ExperimentOutlined
+    SaveOutlined, DeleteOutlined, ExperimentOutlined, GlobalOutlined
 } from '@ant-design/icons';
 import {
     AI_PROVIDERS, AIProvider, AIProviderConfig, aiConfigService, ProviderInfo
 } from '../../services/aiConfig';
+import { changeLanguage, getCurrentLanguage } from '../../i18n';
 import './AISettings.css';
 
 const { Paragraph } = Typography;
@@ -24,6 +26,11 @@ interface AISettingsProps {
 }
 
 export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
+    const { t } = useTranslation();
+
+    // Language state
+    const [currentLang, setCurrentLang] = useState<'zh-CN' | 'en-US'>(getCurrentLanguage());
+
     // Chat model state
     const [chatForm] = Form.useForm();
     const [chatProvider, setChatProvider] = useState<AIProvider>('siliconflow');
@@ -54,6 +61,12 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
 
     const chatProviderInfo: ProviderInfo = AI_PROVIDERS[chatProvider];
 
+    // Language change handler
+    const handleLanguageChange = (lang: 'zh-CN' | 'en-US') => {
+        setCurrentLang(lang);
+        changeLanguage(lang);
+    };
+
     // Chat model handlers
     const handleChatProviderChange = (value: AIProvider) => {
         setChatProvider(value);
@@ -69,7 +82,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
         try {
             await chatForm.validateFields(['apiKey', 'model']);
         } catch {
-            message.error('请填写完整的配置信息');
+            message.error(t('settings.pleaseEnterCompleteConfig'));
             return;
         }
 
@@ -89,7 +102,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
             const result = await aiConfigService.testConnection(config);
             setChatTestResult(result);
             if (result.success) {
-                message.success('Chat 模型连接测试成功！');
+                message.success(t('settings.chatTestSuccess'));
             }
         } catch (e: any) {
             setChatTestResult({ success: false, message: e.message });
@@ -102,7 +115,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
         try {
             await chatForm.validateFields();
         } catch {
-            message.error('请填写完整的配置信息');
+            message.error(t('settings.pleaseEnterCompleteConfig'));
             return;
         }
 
@@ -119,7 +132,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
 
         aiConfigService.saveConfig(config);
         setSavedChatConfig(config);
-        message.success('Chat 模型配置已保存');
+        message.success(t('settings.configSaved'));
     };
 
     const handleClearAll = () => {
@@ -128,7 +141,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
         setChatTestResult(null);
         chatForm.resetFields();
         setChatProvider('siliconflow');
-        message.info('所有配置已清除');
+        message.info(t('settings.allConfigCleared'));
     };
 
     const tabItems = [
@@ -136,7 +149,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
             key: 'chat',
             label: (
                 <span>
-                    <ApiOutlined /> Chat 模型
+                    <ApiOutlined /> {t('settings.chatModel')}
                 </span>
             ),
             children: (
@@ -148,7 +161,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                             icon={savedChatConfig.testStatus === 'success' ? <CheckCircleOutlined /> : <ApiOutlined />}
                             message={
                                 <span>
-                                    当前: <Tag color="blue">{AI_PROVIDERS[savedChatConfig.provider].name}</Tag>
+                                    {t('settings.current')}: <Tag color="blue">{AI_PROVIDERS[savedChatConfig.provider].name}</Tag>
                                     <Tag>{savedChatConfig.model}</Tag>
                                 </span>
                             }
@@ -157,7 +170,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                     )}
 
                     <Form form={chatForm} layout="vertical" size="small">
-                        <Form.Item name="provider" label="供应商" initialValue={chatProvider}>
+                        <Form.Item name="provider" label={t('settings.provider')} initialValue={chatProvider}>
                             <Select value={chatProvider} onChange={handleChatProviderChange}>
                                 {Object.values(AI_PROVIDERS).map((p) => (
                                     <Option key={p.id} value={p.id}>
@@ -167,21 +180,21 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                             </Select>
                         </Form.Item>
 
-                        <Form.Item name="model" label="模型" rules={[{ required: !customChatModel }]}>
+                        <Form.Item name="model" label={t('settings.model')} rules={[{ required: !customChatModel }]}>
                             <Select disabled={chatProvider === 'custom'} onChange={() => setCustomChatModel('')}>
                                 {chatProviderInfo.models.length > 0 && (
                                     <>
-                                        <Select.OptGroup label="旗舰">
+                                        <Select.OptGroup label={t('settings.flagship')}>
                                             {chatProviderInfo.models.filter(m => m.tier === 'flagship').map((m) => (
                                                 <Option key={m.id} value={m.id}>{m.name}</Option>
                                             ))}
                                         </Select.OptGroup>
-                                        <Select.OptGroup label="均衡">
+                                        <Select.OptGroup label={t('settings.balanced')}>
                                             {chatProviderInfo.models.filter(m => m.tier === 'balanced').map((m) => (
                                                 <Option key={m.id} value={m.id}>{m.name}</Option>
                                             ))}
                                         </Select.OptGroup>
-                                        <Select.OptGroup label="经济">
+                                        <Select.OptGroup label={t('settings.economy')}>
                                             {chatProviderInfo.models.filter(m => m.tier === 'economy').map((m) => (
                                                 <Option key={m.id} value={m.id}>{m.name}</Option>
                                             ))}
@@ -191,15 +204,15 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                             </Select>
                         </Form.Item>
 
-                        <Form.Item label="自定义模型 (可选)">
+                        <Form.Item label={t('settings.customModel')}>
                             <Input
-                                placeholder="手动输入模型名称"
+                                placeholder={t('settings.customModelPlaceholder')}
                                 value={customChatModel}
                                 onChange={(e) => setCustomChatModel(e.target.value)}
                             />
                         </Form.Item>
 
-                        <Form.Item name="apiKey" label="API 密钥" rules={[{ required: true }]}>
+                        <Form.Item name="apiKey" label={t('settings.apiKey')} rules={[{ required: true }]}>
                             <Input.Password
                                 placeholder={chatProviderInfo.keyPlaceholder}
                                 visibilityToggle={{ visible: showChatKey, onVisibleChange: setShowChatKey }}
@@ -207,24 +220,24 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                         </Form.Item>
 
                         {chatProvider === 'custom' && (
-                            <Form.Item name="baseUrl" label="API URL" rules={[{ required: true }]}>
+                            <Form.Item name="baseUrl" label={t('settings.apiUrl')} rules={[{ required: true }]}>
                                 <Input placeholder="https://api.example.com/v1" />
                             </Form.Item>
                         )}
 
                         <Space style={{ width: '100%' }}>
                             <Button icon={<ExperimentOutlined />} onClick={handleChatTest} loading={chatTesting}>
-                                测试
+                                {t('settings.testConnection')}
                             </Button>
                             <Button type="primary" icon={<SaveOutlined />} onClick={handleChatSave}>
-                                保存
+                                {t('common.save')}
                             </Button>
                         </Space>
 
                         {chatTestResult && (
                             <Alert
                                 type={chatTestResult.success ? 'success' : 'error'}
-                                message={chatTestResult.success ? '连接成功' : '连接失败'}
+                                message={chatTestResult.success ? t('settings.connectionSuccess') : t('settings.connectionFailed')}
                                 description={chatTestResult.message}
                                 style={{ marginTop: 12 }}
                             />
@@ -240,7 +253,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
             title={
                 <Space>
                     <SettingOutlined />
-                    <span>AI 服务配置</span>
+                    <span>{t('settings.title')}</span>
                 </Space>
             }
             placement="right"
@@ -250,17 +263,38 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
             footer={
                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                     <Button danger icon={<DeleteOutlined />} onClick={handleClearAll} size="small">
-                        清除所有
+                        {t('settings.clearAll')}
                     </Button>
-                    <Button onClick={onClose}>关闭</Button>
+                    <Button onClick={onClose}>{t('common.close')}</Button>
                 </Space>
             }
         >
             <div className="ai-settings">
+                {/* Language Switcher */}
+                <div className="language-section" style={{ marginBottom: 16 }}>
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <Space>
+                            <GlobalOutlined />
+                            <span>{t('settings.language')}</span>
+                        </Space>
+                        <Select
+                            value={currentLang}
+                            onChange={handleLanguageChange}
+                            style={{ width: 120 }}
+                            size="small"
+                        >
+                            <Option value="zh-CN">中文</Option>
+                            <Option value="en-US">English</Option>
+                        </Select>
+                    </Space>
+                </div>
+
+                <Divider style={{ margin: '12px 0' }} />
+
                 <Tabs items={tabItems} size="small" />
 
                 <Paragraph type="secondary" style={{ fontSize: 11, marginTop: 16 }}>
-                    API 密钥加密保存在浏览器本地，不会上传至服务器。
+                    {t('settings.apiKeyEncryptedNote')}
                 </Paragraph>
             </div>
         </Drawer>

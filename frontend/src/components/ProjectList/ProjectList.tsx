@@ -2,6 +2,7 @@
  * ProjectList Component - Display and manage saved projects
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Drawer, List, Button, Space, Typography, Tag, Popconfirm,
     Input, Empty, Spin, message, Modal, Tooltip
@@ -46,6 +47,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
     onSelectProject,
     currentProjectId
 }) => {
+    const { t, i18n } = useTranslation();
     const [projects, setProjects] = useState<ProjectMetadata[]>([]);
     const [loading, setLoading] = useState(false);
     const [renaming, setRenaming] = useState<string | null>(null);
@@ -78,17 +80,17 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 method: 'DELETE'
             });
             if (response.ok) {
-                message.success('项目已删除');
+                message.success(t('projectList.projectDeleted'));
                 setProjects(prev => prev.filter(p => p.id !== projectId));
             }
         } catch (e) {
-            message.error('删除失败');
+            message.error(t('projectList.deleteFailed'));
         }
     };
 
     const handleRename = async (projectId: string) => {
         if (!newName.trim()) {
-            message.warning('请输入项目名称');
+            message.warning(t('projectList.pleaseEnterName'));
             return;
         }
 
@@ -100,7 +102,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             });
 
             if (response.ok) {
-                message.success('重命名成功');
+                message.success(t('projectList.renameSuccess'));
                 setProjects(prev => prev.map(p =>
                     p.id === projectId ? { ...p, name: newName.trim() } : p
                 ));
@@ -108,7 +110,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 setNewName('');
             }
         } catch (e) {
-            message.error('重命名失败');
+            message.error(t('projectList.renameFailed'));
         }
     };
 
@@ -123,10 +125,10 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 a.download = `${projectId}.${format === 'bibtex' ? 'bib' : 'json'}`;
                 a.click();
                 URL.revokeObjectURL(url);
-                message.success('导出成功');
+                message.success(t('projectList.exportSuccess'));
             }
         } catch (e) {
-            message.error('导出失败');
+            message.error(t('projectList.exportFailed'));
         }
     };
 
@@ -135,23 +137,23 @@ export const ProjectList: React.FC<ProjectListProps> = ({
         const now = new Date();
         const diff = now.getTime() - date.getTime();
 
-        if (diff < 60000) return '刚刚';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-        if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-        if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
+        if (diff < 60000) return t('projectList.justNow');
+        if (diff < 3600000) return `${Math.floor(diff / 60000)}${t('projectList.minutesAgo')}`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)}${t('projectList.hoursAgo')}`;
+        if (diff < 604800000) return `${Math.floor(diff / 86400000)}${t('projectList.daysAgo')}`;
 
-        return date.toLocaleDateString('zh-CN');
+        return date.toLocaleDateString(i18n.language === 'en-US' ? 'en-US' : 'zh-CN');
     };
 
     const getStatusTag = (status: string) => {
-        const statusMap: Record<string, { color: string; text: string }> = {
-            'completed': { color: 'success', text: '已完成' },
-            'crawling': { color: 'processing', text: '构建中' },
-            'failed': { color: 'error', text: '失败' },
-            'created': { color: 'default', text: '已创建' },
+        const statusMap: Record<string, { color: string; textKey: string }> = {
+            'completed': { color: 'success', textKey: 'projectList.statusCompleted' },
+            'crawling': { color: 'processing', textKey: 'projectList.statusCrawling' },
+            'failed': { color: 'error', textKey: 'projectList.statusFailed' },
+            'created': { color: 'default', textKey: 'projectList.statusCreated' },
         };
-        const s = statusMap[status] || { color: 'default', text: status };
-        return <Tag color={s.color}>{s.text}</Tag>;
+        const s = statusMap[status] || { color: 'default', textKey: status };
+        return <Tag color={s.color}>{t(s.textKey)}</Tag>;
     };
 
     return (
@@ -159,7 +161,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             title={
                 <Space>
                     <FolderOutlined />
-                    <span>我的项目</span>
+                    <span>{t('projectList.title')}</span>
                     <Button
                         type="text"
                         icon={<ReloadOutlined />}
@@ -177,7 +179,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             <Spin spinning={loading}>
                 {projects.length === 0 ? (
                     <Empty
-                        description="暂无保存的项目"
+                        description={t('projectList.empty')}
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                     />
                 ) : (
@@ -187,7 +189,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                             <List.Item
                                 className={`project-item ${project.id === currentProjectId ? 'active' : ''}`}
                                 actions={[
-                                    <Tooltip title="重命名" key="rename">
+                                    <Tooltip title={t('projectList.rename')} key="rename">
                                         <Button
                                             type="text"
                                             size="small"
@@ -198,7 +200,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                                             }}
                                         />
                                     </Tooltip>,
-                                    <Tooltip title="导出 JSON" key="export">
+                                    <Tooltip title={t('projectList.exportJson')} key="export">
                                         <Button
                                             type="text"
                                             size="small"
@@ -207,8 +209,8 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                                         />
                                     </Tooltip>,
                                     <Popconfirm
-                                        title="确定删除此项目？"
-                                        description="此操作不可撤销"
+                                        title={t('projectList.deleteConfirm')}
+                                        description={t('projectList.cannotUndo')}
                                         onConfirm={() => handleDelete(project.id)}
                                         key="delete"
                                     >
@@ -248,11 +250,11 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                                                 <Space size="small">
                                                     <FileTextOutlined />
                                                     <Text type="secondary" style={{ fontSize: 12 }}>
-                                                        {project.stats.total_nodes} 篇论文
+                                                        {project.stats.total_nodes}{t('projectList.papers')}
                                                     </Text>
                                                     <NodeIndexOutlined />
                                                     <Text type="secondary" style={{ fontSize: 12 }}>
-                                                        {project.stats.total_edges} 条引用
+                                                        {project.stats.total_edges}{t('projectList.citations')}
                                                     </Text>
                                                 </Space>
                                             )}
@@ -267,20 +269,20 @@ export const ProjectList: React.FC<ProjectListProps> = ({
 
             {/* Rename Modal */}
             <Modal
-                title="重命名项目"
+                title={t('projectList.renameProject')}
                 open={renaming !== null}
                 onOk={() => renaming && handleRename(renaming)}
                 onCancel={() => {
                     setRenaming(null);
                     setNewName('');
                 }}
-                okText="确定"
-                cancelText="取消"
+                okText={t('common.confirm')}
+                cancelText={t('common.cancel')}
             >
                 <Input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="输入新的项目名称"
+                    placeholder={t('projectList.newNamePlaceholder')}
                     onPressEnter={() => renaming && handleRename(renaming)}
                 />
             </Modal>

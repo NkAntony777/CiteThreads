@@ -3,6 +3,7 @@
  * Renders a fullscreen view with left 25% AI chat + right 75% editor
  */
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Spin, Switch, Typography, message, Empty, Tooltip } from 'antd';
 import {
     FullscreenExitOutlined,
@@ -37,6 +38,8 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
     initialChatHistory = [],
     onChatHistoryChange,
 }) => {
+    const { t, i18n } = useTranslation();
+
     // Editor state
     const vditorRef = useRef<Vditor | null>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -84,8 +87,9 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
             vditorRef.current = new Vditor('fullscreen-vditor', {
                 mode: 'ir',
                 height: '100%',
+                lang: i18n.language === 'en-US' ? 'en_US' : 'zh_CN',
                 cache: { enable: false },
-                placeholder: '在这里撰写你的论文...\n\n支持 Markdown 语法，使用 [@引用键] 格式添加引用。',
+                placeholder: t('canvasEditor.placeholder'),
                 toolbar: [
                     'headings', 'bold', 'italic', 'strike', '|',
                     'quote', 'list', 'ordered-list', 'check', '|',
@@ -117,7 +121,7 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
             }
             vditorRef.current?.destroy();
         };
-    }, [projectId]);
+    }, [projectId, i18n.language, t]);
 
     // Scroll to bottom when new messages arrive
     useEffect(() => {
@@ -156,7 +160,7 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
             if (result.success) {
                 const assistantContent = result.message?.content || '';
                 if (!assistantContent) {
-                    throw new Error('AI 返回内容为空');
+                    throw new Error(t('fullscreenCanvas.aiReturnEmpty'));
                 }
 
                 const updatedHistory = [...newHistory, {
@@ -169,15 +173,15 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
                 // Auto-insert to canvas if direct mode is enabled
                 if (directToCanvas && vditorRef.current) {
                     vditorRef.current.insertValue(assistantContent);
-                    message.success('已插入到画布');
+                    message.success(t('canvasEditor.insertedToCanvas'));
                 }
             }
         } catch (error: any) {
-            const errorMsg = error?.response?.data?.detail || error?.message || '未知错误';
-            message.error('AI回复失败: ' + errorMsg);
+            const errorMsg = error?.response?.data?.detail || error?.message || t('fullscreenCanvas.unknownError');
+            message.error(t('fullscreenCanvas.aiReplyFailed') + errorMsg);
             setChatHistory([...newHistory, {
                 role: 'assistant',
-                content: `抱歉，发生错误: ${errorMsg}`
+                content: `${t('fullscreenCanvas.sorryError')}${errorMsg}`
             }]);
         } finally {
             setChatLoading(false);
@@ -187,7 +191,7 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
     const handleInsertToCanvas = (content: string) => {
         if (vditorRef.current) {
             vditorRef.current.insertValue(content);
-            message.success('已插入到画布');
+            message.success(t('canvasEditor.insertedToCanvas'));
         }
     };
 
@@ -196,7 +200,7 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
             {/* Left AI Chat Panel */}
             <div className="fullscreen-chat-panel">
                 <div className="fullscreen-chat-header">
-                    <RobotOutlined /> AI 写作助手
+                    <RobotOutlined /> {t('fullscreenCanvas.aiAssistant')}
                 </div>
 
                 <div className="fullscreen-chat-messages" ref={chatMessagesRef}>
@@ -204,8 +208,8 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
                         <Empty
                             description={
                                 <div style={{ textAlign: 'center', color: '#999' }}>
-                                    <p>与 AI 助手对话</p>
-                                    <p style={{ fontSize: 12 }}>例如：帮我写 Introduction 部分</p>
+                                    <p>{t('fullscreenCanvas.chatWithAi')}</p>
+                                    <p style={{ fontSize: 12 }}>{t('fullscreenCanvas.chatExample')}</p>
                                 </div>
                             }
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -219,7 +223,7 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
                                 {msg.role === 'assistant' ? (
                                     <div>
                                         <ReactMarkdown>{msg.content}</ReactMarkdown>
-                                        <Tooltip title="插入到画布">
+                                        <Tooltip title={t('fullscreenCanvas.insertToCanvas')}>
                                             <Button
                                                 type="text"
                                                 size="small"
@@ -227,7 +231,7 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
                                                 onClick={() => handleInsertToCanvas(msg.content)}
                                                 style={{ marginTop: 4 }}
                                             >
-                                                插入
+                                                {t('fullscreenCanvas.insert')}
                                             </Button>
                                         </Tooltip>
                                     </div>
@@ -239,7 +243,7 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
                     )}
                     {chatLoading && (
                         <div className="fullscreen-chat-message assistant">
-                            <Spin size="small" /> <Text type="secondary">AI 思考中...</Text>
+                            <Spin size="small" /> <Text type="secondary">{t('fullscreenCanvas.aiThinking')}</Text>
                         </div>
                     )}
                 </div>
@@ -251,13 +255,13 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
                             checked={directToCanvas}
                             onChange={setDirectToCanvas}
                         />
-                        <Text type="secondary">直接写入画布</Text>
+                        <Text type="secondary">{t('fullscreenCanvas.directToCanvas')}</Text>
                     </div>
                     <div className="fullscreen-chat-input-row" style={{ marginTop: 8 }}>
                         <TextArea
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="输入消息..."
+                            placeholder={t('fullscreenCanvas.inputPlaceholder')}
                             autoSize={{ minRows: 1, maxRows: 4 }}
                             onPressEnter={(e) => {
                                 if (!e.shiftKey) {
@@ -285,19 +289,19 @@ const FullscreenCanvas: React.FC<FullscreenCanvasProps> = ({
                     icon={<FullscreenExitOutlined />}
                     onClick={onExit}
                 >
-                    退出全屏 (Esc)
+                    {t('fullscreenCanvas.exitFullscreen')}
                 </Button>
 
                 {loading && (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                        <Spin tip="加载编辑器..." />
+                        <Spin tip={t('canvasEditor.loading')} />
                     </div>
                 )}
                 <div id="fullscreen-vditor" style={{ display: loading ? 'none' : 'block', height: '100%' }} />
 
                 {saving && (
                     <div style={{ position: 'absolute', bottom: 12, right: 12 }}>
-                        <Spin size="small" /> <Text type="secondary" style={{ fontSize: 12 }}>保存中...</Text>
+                        <Spin size="small" /> <Text type="secondary" style={{ fontSize: 12 }}>{t('fullscreenCanvas.saving')}</Text>
                     </div>
                 )}
             </div>
