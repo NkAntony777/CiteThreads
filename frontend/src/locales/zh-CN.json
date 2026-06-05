@@ -39,7 +39,11 @@
         "syncingAiConfig": "正在同步 AI 配置并启动分析...",
         "aiAnalysisComplete": "AI 分析完成",
         "aiAnalysisFailed": "AI 分析失败",
-        "pleaseCreateGraphFirst": "请先构建图谱"
+        "pleaseCreateGraphFirst": "请先构建图谱",
+        "noProjectTitle": "尚未选择项目",
+        "noProjectHint": "在左侧 SmartSearch 选一篇候选论文作为种子，然后构建引用网络",
+        "projectReadyTitle": "项目已就绪",
+        "projectReadyHint": "引用网络背景准备中（不阻塞）。直接进入写作视图即可使用。"
     },
     "settings": {
         "title": "AI 服务配置",
@@ -58,12 +62,16 @@
         "testConnection": "测试",
         "connectionSuccess": "连接成功",
         "connectionFailed": "连接失败",
+        "networkError": "网络错误",
         "chatTestSuccess": "Chat 模型连接测试成功！",
         "configSaved": "Chat 模型配置已保存",
         "clearAll": "清除所有",
         "allConfigCleared": "所有配置已清除",
         "pleaseEnterCompleteConfig": "请填写完整的配置信息",
-        "apiKeyEncryptedNote": "API 密钥加密保存在浏览器本地，不会上传至服务器。"
+        "apiKeyEncryptedNote": "API 密钥加密保存在浏览器本地，不会上传至服务器。",
+        "apiKeyFromServerNote": "API 密钥由服务器通过环境变量配置 (例如 SILICONFLOW_API_KEY)，不在浏览器中存储或传输。",
+        "defaultKeyConfigured": "服务器已配置默认 API 密钥",
+        "defaultKeyMissing": "服务器未配置默认 API 密钥，请在部署时设置 SILICONFLOW_API_KEY 等环境变量"
     },
     "nodePanel": {
         "title": "论文详情",
@@ -101,7 +109,18 @@
         "citationContext": "引用上下文",
         "citationId": "引用ID",
         "analysisModel": "分析模型",
-        "unknownModel": "未知模型"
+        "unknownModel": "未知模型",
+        "citationFunctionBackground": "背景",
+        "citationFunctionMethodology": "方法",
+        "citationFunctionComparison": "对比",
+        "citationFunctionCritique": "批判",
+        "citationFunctionBasis": "基础",
+        "citationFunctionUnknown": "未知",
+        "sentimentPrefix": "情感倾向：",
+        "sentimentPositive": "积极",
+        "sentimentNeutral": "中性",
+        "sentimentNegative": "消极",
+        "sentimentUnknown": "未知"
     },
     "searchBar": {
         "placeholder": "输入 DOI、arXiv ID 或论文标题...",
@@ -121,19 +140,24 @@
         "directionBoth": "双向",
         "directionForward": "参考文献",
         "directionBackward": "施引文献",
-        "reSearch": "重新搜索",
-        "buildGraph": "构建图谱",
+        "reSearch": "重新选择",
         "startBuildingGraph": "开始构建引用图谱...",
         "buildComplete": "图谱构建完成！",
         "papersAndCitations": "篇论文，{edges} 条引用（按被引量排序）",
         "noDataRetry": "未能获取论文数据，可能是 API 限流，请稍后重试",
         "buildFailed": "图谱构建失败：",
         "createProjectFailed": "创建项目失败",
+        "fetchProjectFailed": "图谱已构建完成，但加载项目失败。请刷新页面后从我的项目中打开。",
         "buildingGraph": "正在构建引用图谱...",
-        "rateLimitedTrying": "API 限流中，正在尝试备用数据源..."
+        "rateLimitedTrying": "API 限流中，正在尝试备用数据源...",
+        "startWriting": "开始写作",
+        "startWritingComplete": "已就绪，引用网络：",
+        "preparingContext": "正在准备隐藏上下文",
+        "buildGraph": "构建图谱"
     },
     "graphFilters": {
         "title": "筛选",
+        "layout": "布局",
         "yearRange": "年份范围",
         "noYearData": "暂无年份数据。",
         "citationIntent": "引用意图",
@@ -181,15 +205,6 @@
         "removeFailed": "移除失败",
         "refExists": "该文献已存在",
         "graphPapers": "图谱论文",
-        "literatureReview": "文献综述",
-        "academicStyle": "学术风格",
-        "conciseStyle": "简洁风格",
-        "detailedStyle": "详细风格",
-        "generateReview": "生成文献综述",
-        "pleaseAddRefs": "请先添加参考文献",
-        "reviewGenerated": "文献综述生成成功",
-        "generateFailed": "生成失败，请检查AI配置",
-        "addRefsThenGenerate": "添加参考文献后点击生成",
         "aiWriting": "AI写作",
         "startChatWithAi": "开始与AI助手对话",
         "chatExample": "你可以说：\"帮我找一下关于XXX的论文\"",
@@ -205,7 +220,8 @@
         "sorryError": "抱歉，发生错误: ",
         "checkConsole": "请检查控制台获取更多详细信息。",
         "unknownError": "未知错误",
-        "addedToRefs": "已添加到参考文献"
+        "addedToRefs": "已添加到参考文献",
+        "autoAddedRefs": "已自动加入 {count} 篇引用"
     },
     "clusterPanel": {
         "title": "文献智能流派识别",
@@ -236,6 +252,29 @@
         "addRef": "添加引用",
         "added": "已添加:",
         "cited": "被引"
+    },
+    "smartSearch": {
+        "title": "智能推荐",
+        "subtitle": "用自然语言描述你想找的论文，Agent 会自动检索多源并推荐候选",
+        "placeholder": "用一句话描述你想找的论文，例如：图神经网络综述 2022-2024 高引用",
+        "examples": [
+            "图神经网络综述",
+            "Transformer 在医疗影像的应用",
+            "最近三年联邦学习高引论文",
+            "SIGGRAPH 2023 最佳论文"
+        ],
+        "thinking": "Agent 正在思考…",
+        "noResult": "暂未推荐论文，可以换个说法再试",
+        "selectToBuild": "用这篇建图谱",
+        "toolActivity": "工具活动",
+        "filterNote": "过滤参数仅在部分数据源上生效",
+        "reset": "重置",
+        "send": "发送",
+        "stop": "停止",
+        "modeSmart": "智能推荐",
+        "modeClassic": "经典搜索",
+        "errorGeneric": "智能推荐失败，请稍后重试",
+        "empty": "输入描述后按 Enter 发送"
     },
     "graphCanvas": {
         "emptyTitle": "引用图谱可视化",
@@ -293,5 +332,168 @@
         "aiReplyFailed": "AI回复失败: ",
         "sorryError": "抱歉，发生错误: ",
         "unknownError": "未知错误"
+    },
+    "draftGenerator": {
+        "title": "长文生成",
+        "tabLabel": "长文生成",
+        "intro": "从一个研究主题出发，生成完整的论文草稿。流程分四步：调研 → 结构 → 写作 → 编译。",
+        "form": {
+            "topic": "研究主题",
+            "topicPlaceholder": "例如：大语言模型对学术文献综述工作流的影响",
+            "wordCount": "目标字数",
+            "citationStyle": "引用样式",
+            "projectId": "项目 ID"
+        },
+        "citationStyles": {
+            "APA": "APA (第七版)",
+            "IEEE": "IEEE",
+            "CHICAGO": "Chicago",
+            "MLA": "MLA"
+        },
+        "phases": {
+            "research": "调研",
+            "structure": "结构",
+            "compose": "写作",
+            "validate": "校验",
+            "compile": "编译",
+            "export": "导出"
+        },
+        "buttons": {
+            "research": "1. 调研",
+            "structure": "2. 结构",
+            "compose": "3. 写作",
+            "compile": "4. 编译",
+            "cancel": "取消运行",
+            "cancelAriaLabel": "取消当前正在运行的阶段"
+        },
+        "progress": {
+            "label": "流程进度",
+            "idle": "空闲",
+            "running": "运行中…",
+            "completed": "已完成",
+            "failed": "失败",
+            "skipped": "已跳过"
+        },
+        "output": {
+            "candidatePapers": "候选论文",
+            "paperSummaries": "论文摘要",
+            "researchGaps": "研究空白",
+            "outline": "大纲",
+            "sections": "章节草稿",
+            "finalDraft": "最终稿件",
+            "qualityHistory": "质量历史",
+            "empty": "暂无输出 — 运行对应阶段后将在此显示结果。"
+        },
+        "status": {
+            "noProject": "未选择项目。",
+            "noTopic": "请先输入研究主题，再运行调研阶段。",
+            "researchDone": "调研完成，共找到 {papers} 篇候选论文。",
+            "structureDone": "大纲已生成，审阅后再开始写作。",
+            "composeDone": "章节草稿已生成，可以编译最终论文。",
+            "compileDone": "最终稿件已编译完成，可在右侧面板查看。",
+            "fetchStatusFailed": "获取流程状态失败",
+            "cancelRequested": "已请求取消，将在当前步骤完成后停止。",
+            "cancelled": "当前阶段已取消。"
+        },
+        "error": {
+            "authRequired": "需要身份认证。请在 AI 设置或服务器环境中配置 Bearer Token。",
+            "noLLMKey": "服务器未配置 LLM API 密钥。请先设置 SILICONFLOW_API_KEY（或对应供应商的密钥）后再运行流程。",
+            "authRequiredFriendly": "会话已过期，请重新登录",
+            "noLLMKeyFriendly": "AI 助手尚未配置，请联系管理员",
+            "llmServerError": "AI 服务暂时不可用，请稍后重试",
+            "networkError": "网络连接异常，请检查后重试",
+            "garbageOutput": "AI 返回内容异常，已使用降级方案，输出可能不够理想",
+            "sessionExpired": "会话已过期，请重新登录",
+            "generic": "流程错误"
+        },
+        "regen": {
+            "modalTitle": "重写章节：{section}",
+            "instructionsLabel": "额外要求（可选）",
+            "instructionsPlaceholder": "例如：使用更专业的术语，控制在 600 字以内，多用对比表格……",
+            "submit": "重新生成",
+            "running": "正在重写……",
+            "success": "章节已重新生成",
+            "errorTitle": "重写失败",
+            "viewDiff": "查看差异",
+            "hideDiff": "收起差异",
+            "diffUnavailable": "差异对比暂不可用。"
+        }
+    },
+    "agent": {
+        "panelTitle": "研究助手",
+        "stop": "停止",
+        "reset": "重置",
+        "send": "发送",
+        "thinking": "Agent 正在思考…",
+        "noResponse": "暂无回复",
+        "suggestedPapers": "推荐论文",
+        "toolActivity": "工具活动",
+        "placeholder": "向 Agent 提问 — 例如：推荐 5 篇图神经网络综述",
+        "askAgent": "问研究助手",
+        "writingContextHint": "当前在写作上下文中 — 可以问澄清、替换或扩展"
+    },
+    "projectView": {
+        "untitled": "未命名项目",
+        "projectId": "项目 ID",
+        "paperCount": "论文数",
+        "citationCount": "引用关系",
+        "openWriting": "打开论文写作助手",
+        "writingNotWired": "写作助手未配置,请联系开发者",
+        "cited": "引用数",
+        "referencesLabel": "引用了",
+        "citedByLabel": "被引用",
+        "more": "篇",
+        "emptyTitle": "项目还没有论文",
+        "emptyHint": "在左侧 SmartSearch 选一篇论文,点 “构建引用网络” 即可开始"
+    },
+    "chat": {
+        "newChat": "新对话",
+        "createFailed": "创建对话失败",
+        "loadFailed": "加载对话失败",
+        "deleteFailed": "删除对话失败",
+        "renameFailed": "重命名失败",
+        "emptyList": "尚无历史对话",
+        "emptyTitle": "开始新对话",
+        "emptyHint": "输入一句自然语言，Agent 会自动搜索论文、引用、并按需撰写长文。",
+        "suggestions": [
+            "推荐 5 篇图神经网络综述",
+            "帮我写一篇 Transformer 在医疗影像的综述",
+            "找最近 3 年联邦学习高引论文"
+        ],
+        "inputPlaceholder": "向研究助手提问,例如: 推荐 5 篇 GNN 综述",
+        "inputAriaLabel": "输入消息",
+        "send": "发送",
+        "stop": "停止",
+        "toolActivity": "工具活动",
+        "tool": "工具",
+        "toolError": "工具调用失败",
+        "suggestedPapers": "推荐论文",
+        "thinking": "Agent 正在思考…",
+        "retry": "重试",
+        "iterTag": "迭代 {n}",
+        "papers": "篇论文",
+        "sections": "段",
+        "copied": "已复制",
+        "copyFailed": "复制失败",
+        "copy": "复制",
+        "deleteConfirm": "确定删除该对话？",
+        "sectionsGenerated": "已生成 {n} 段",
+        "exportCurrent": "导出当前对话",
+        "phase": {
+            "pending": "未开始",
+            "running": "{phase} 阶段正在运行...",
+            "succeeded": "已完成",
+            "failed": "失败",
+            "skipped": "已跳过",
+            "checkpoint": "可断点续跑",
+            "resumed": "已续跑",
+            "checkpointHint": "此阶段已有检查点文件，可断点续跑",
+            "run": "运行",
+            "retry": "重试",
+            "rerun": "重新运行",
+            "runFailed": "运行失败",
+            "partialFailure": "部分阶段失败,可点 Retry 单独重试",
+            "canResume": "已完成 {completed}/{total} 阶段,可继续运行"
+        }
     }
 }

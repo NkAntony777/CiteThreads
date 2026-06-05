@@ -2,13 +2,14 @@
  * CanvasEditor - Markdown editor with AI interaction
  * Uses Vditor in instant rendering mode
  */
-import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Tooltip, message, Spin, Space } from 'antd';
 import { SaveOutlined, ThunderboltOutlined, EditOutlined, ExportOutlined, ExpandOutlined } from '@ant-design/icons';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
 import { writingApi } from '../../services/writingApi';
+import { streamAgentChat } from '../../services/agentStream';
 import './CanvasEditor.css';
 
 export interface CanvasEditorHandle {
@@ -27,12 +28,12 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
     const containerRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [aiRunning, setAiRunning] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const aiAbortRef = useRef<AbortController | null>(null);
 
     useImperativeHandle(ref, () => ({
         insertContent: (content: string) => {
-            console.log('CanvasEditor: insertContent called', { length: content.length, hasVditor: !!vditorRef.current });
-
             if (vditorRef.current) {
                 try {
                     // Focus ensure the cursor position is active (defaults to end if lost)
@@ -123,6 +124,10 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
             if (saveTimeoutRef.current) {
                 clearTimeout(saveTimeoutRef.current);
             }
+            if (aiAbortRef.current) {
+                aiAbortRef.current.abort();
+                aiAbortRef.current = null;
+            }
             vditorRef.current?.destroy();
         };
     }, [projectId, i18n.language, t]);
@@ -198,24 +203,79 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
     }, []);
 
     const handleAIAction = async (type: 'continue' | 'polish') => {
-        if (!selectedText) return;
+        if (!selectedText || aiRunning) return;
         setMenuVisible(false);
+        setAiRunning(true);
+
+        // Cancel any previous in-flight request and start a fresh one.
+        if (aiAbortRef.current) {
+            aiAbortRef.current.abort();
+        }
+        const controller = new AbortController();
+        aiAbortRef.current = controller;
+
+        // Build the prompt. The agent runtime already has tool support,
+        // but for canvas continue/polish we want a direct text answer
+        // with no tool calls, so we pass an explicit ``extra_context``
+        // describing the task and the user-selected text.
+        const userPrompt = type === 'continue'
+            ? `请对下面的内容进行续写, 直接给出续写的正文, 不要重复原文, 也不要写解释: \n\n${selectedText}`
+            : `请对下面的内容进行学术风格润色, 保持原意, 输出润色后的完整内容: \n\n${selectedText}`;
+
         const hide = message.loading(t('canvasEditor.aiThinking'), 0);
 
-        try {
-            // TODO: Call AI API
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Mock
+        // Buffer for streamed tokens. We append a marker so the user
+        // can see what's been AI-written vs. what was already there.
+        let buffer = '';
+        let insertedMarker = false;
 
-            if (type === 'continue') {
-                vditorRef.current?.insertValue(`\n\n[续写] ${selectedText} 的续写内容...`);
-            } else {
-                vditorRef.current?.updateValue(`[润色] ${selectedText}`);
+        try {
+            const handle = streamAgentChat(
+                {
+                    message: userPrompt,
+                    project_id: projectId,
+                    extra_context: type === 'continue'
+                        ? 'Task: continue the given text in the same academic style. Do not include explanations, do not echo the original text.'
+                        : 'Task: polish the given text in academic style. Keep the original meaning. Do not include explanations, do not echo the original text.',
+                },
+                {
+                    onTextDelta: (delta) => {
+                        if (!insertedMarker) {
+                            const label = type === 'continue'
+                                ? `\n\n[AI 续写] `
+                                : `\n\n[AI 润色] `;
+                            vditorRef.current?.insertValue(label);
+                            insertedMarker = true;
+                        }
+                        buffer += delta;
+                        vditorRef.current?.insertValue(delta);
+                    },
+                    onError: (msg) => {
+                        console.error('Canvas AI error:', msg);
+                        message.error(t('canvasEditor.aiFailed') + msg);
+                    },
+                },
+                { signal: controller.signal },
+            );
+
+            await handle.done;
+            if (buffer.length > 0) {
+                message.success(t('canvasEditor.aiComplete'));
             }
-            message.success(t('canvasEditor.aiComplete'));
         } catch (e) {
-            message.error(t('canvasEditor.aiFailed'));
+            const err = e as { name?: string; message?: string };
+            if (err.name === 'AbortError') {
+                message.info(t('canvasEditor.aiComplete'));
+            } else {
+                console.error('Canvas AI stream crashed:', e);
+                message.error(t('canvasEditor.aiFailed') + (err.message ?? ''));
+            }
         } finally {
             hide();
+            if (aiAbortRef.current === controller) {
+                aiAbortRef.current = null;
+            }
+            setAiRunning(false);
         }
     };
 
@@ -308,6 +368,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
                             size="small"
                             icon={<ThunderboltOutlined style={{ color: '#1890ff' }} />}
                             onClick={() => handleAIAction('continue')}
+                            disabled={aiRunning}
                         >
                             {t('canvasEditor.aiContinue')}
                         </Button>
@@ -316,6 +377,7 @@ const CanvasEditor = forwardRef<CanvasEditorHandle, CanvasEditorProps>(({ projec
                             size="small"
                             icon={<EditOutlined style={{ color: '#52c41a' }} />}
                             onClick={() => handleAIAction('polish')}
+                            disabled={aiRunning}
                         >
                             {t('canvasEditor.aiPolish')}
                         </Button>

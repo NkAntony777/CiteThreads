@@ -146,7 +146,7 @@ export const projectApi = {
     /**
      * Cluster project papers
      */
-    cluster: async (projectId: string, nClusters: number, useAbstract: boolean): Promise<any> => {
+    cluster: async (projectId: string, nClusters: number, useAbstract: boolean): Promise<{ success: boolean; clusters: import('../types').ClusterInfo[]; paper_clusters: Record<string, number> }> => {
         const response = await api.post(`/projects/${projectId}/cluster`, {
             n_clusters: nClusters,
             use_abstract: useAbstract,

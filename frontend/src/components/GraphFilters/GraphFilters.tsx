@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, Slider, Select, Space, Button, Typography } from 'antd';
-import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import { FilterOutlined, ReloadOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useGraphStore } from '../../stores/graphStore';
 import type { CitationIntent } from '../../types';
+import type { LayoutMode } from '../../utils/graphLayouts';
 import './GraphFilters.css';
 
 const { Text } = Typography;
@@ -15,14 +16,22 @@ const INTENT_OPTIONS: { value: CitationIntent; label: string }[] = [
     { value: 'UNKNOWN', label: 'UNKNOWN' },
 ];
 
+const LAYOUT_OPTIONS: { value: LayoutMode; label: string }[] = [
+    { value: 'timeline', label: 'Timeline' },
+    { value: 'radial', label: 'Radial' },
+    { value: 'force', label: 'Force-Directed' },
+];
+
 export const GraphFilters: React.FC = () => {
     const { t } = useTranslation();
     const {
         nodes,
         yearRange,
         intentFilter,
+        layoutMode,
         setYearRange,
         setIntentFilter,
+        setLayoutMode,
     } = useGraphStore();
 
     const yearExtent = useMemo(() => {
@@ -61,6 +70,16 @@ export const GraphFilters: React.FC = () => {
                 </Button>
             }
         >
+            <div className="filter-section">
+                <Text type="secondary"><AppstoreOutlined /> {t('graphFilters.layout', 'Layout')}</Text>
+                <Select
+                    value={layoutMode}
+                    options={LAYOUT_OPTIONS}
+                    onChange={(value) => setLayoutMode(value as LayoutMode)}
+                    style={{ width: '100%' }}
+                />
+            </div>
+
             <div className="filter-section">
                 <Text type="secondary">{t('graphFilters.yearRange')}</Text>
                 <Slider

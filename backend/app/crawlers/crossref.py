@@ -5,6 +5,7 @@ Documentation: https://api.crossref.org/
 import httpx
 import asyncio
 import logging
+import re
 from typing import List, Optional, Dict, Any
 from ..models import Paper
 from ..config import settings
@@ -74,7 +75,6 @@ class CrossrefCrawler:
         # usually need parsing. For simplicity we skip or clean it lightly)
         abstract = item.get("abstract") # This is often XML string like <jats:p>...</jats:p>
         if abstract:
-            import re
             abstract = re.sub(r'<[^>]+>', '', abstract).strip()
 
         return Paper(

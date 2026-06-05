@@ -2,20 +2,24 @@
 Writing API Router
 Endpoints for literature review and AI writing assistant
 """
+import json
+import logging
+from pathlib import Path
+from typing import Optional, List
+
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
-from typing import Optional, List
-import logging
 
 from ..models import Paper
 from ..models.references import (
     Reference,
-    LiteratureReviewDraft, 
-    WritingContext, 
+    LiteratureReviewDraft,
+    WritingContext,
     ChatMessage,
     ReferenceSource,
     ReferenceList
 )
+from ..config import settings
 from ..services.review_generator import review_generator
 from ..services.writing_assistant import writing_assistant
 from ..services.paper_search_service import paper_search_service, SearchFilters
@@ -105,8 +109,6 @@ class ChatHistorySaveRequest(BaseModel):
 @router.get("/projects/{project_id}/canvas")
 async def get_canvas(project_id: str):
     """Get canvas content for a project"""
-    from pathlib import Path
-    from ..config import settings
     path = Path(settings.data_dir) / "projects" / project_id / "canvas.md"
     content = path.read_text(encoding="utf-8") if path.exists() else ""
     return {"content": content}
@@ -115,8 +117,6 @@ async def get_canvas(project_id: str):
 @router.post("/projects/{project_id}/canvas")
 async def save_canvas(project_id: str, request: CanvasSaveRequest):
     """Save canvas content for a project"""
-    from pathlib import Path
-    from ..config import settings
     path = Path(settings.data_dir) / "projects" / project_id / "canvas.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(request.content, encoding="utf-8")
@@ -130,8 +130,6 @@ async def save_canvas(project_id: str, request: CanvasSaveRequest):
 @router.get("/projects/{project_id}/review")
 async def get_review(project_id: str):
     """Get saved literature review for a project"""
-    from pathlib import Path
-    from ..config import settings
     path = Path(settings.data_dir) / "projects" / project_id / "review.md"
     content = path.read_text(encoding="utf-8") if path.exists() else ""
     return {"content": content}
@@ -140,8 +138,6 @@ async def get_review(project_id: str):
 @router.post("/projects/{project_id}/review")
 async def save_review(project_id: str, request: ReviewSaveRequest):
     """Save literature review for a project"""
-    from pathlib import Path
-    from ..config import settings
     path = Path(settings.data_dir) / "projects" / project_id / "review.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(request.content, encoding="utf-8")
@@ -151,9 +147,6 @@ async def save_review(project_id: str, request: ReviewSaveRequest):
 @router.get("/projects/{project_id}/chat-history")
 async def get_chat_history(project_id: str):
     """Get saved chat history for a project"""
-    import json
-    from pathlib import Path
-    from ..config import settings
     path = Path(settings.data_dir) / "projects" / project_id / "chat_history.json"
     if path.exists():
         try:
@@ -169,9 +162,6 @@ async def get_chat_history(project_id: str):
 @router.post("/projects/{project_id}/chat-history")
 async def save_chat_history(project_id: str, request: ChatHistorySaveRequest):
     """Save chat history for a project"""
-    import json
-    from pathlib import Path
-    from ..config import settings
     try:
         path = Path(settings.data_dir) / "projects" / project_id / "chat_history.json"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -194,13 +184,8 @@ def _get_reference_list(project_id: str) -> ReferenceList:
     """Get or create reference list for a project with file persistence"""
     if project_id in _reference_lists:
         return _reference_lists[project_id]
-        
+
     # Try to load from disk
-    import json
-    import os
-    from pathlib import Path
-    from ..config import settings
-    
     path = Path(settings.data_dir) / "projects" / project_id / "references.json"
     if path.exists():
         try:
@@ -220,10 +205,6 @@ def _get_reference_list(project_id: str) -> ReferenceList:
 
 def _save_reference_list(project_id: str, ref_list: ReferenceList):
     """Save reference list to disk"""
-    import json
-    from pathlib import Path
-    from ..config import settings
-    
     _reference_lists[project_id] = ref_list
     
     try:

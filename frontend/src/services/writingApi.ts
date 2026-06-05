@@ -21,7 +21,7 @@ export const writingApi = {
     /**
      * Add a reference from graph
      */
-    addReference: async (projectId: string, paperId: string, source: string = 'graph'): Promise<any> => {
+    addReference: async (projectId: string, paperId: string, source: string = 'graph'): Promise<{ success: boolean; reference?: { id: string; citation_key: string; paper: Paper }; message?: string }> => {
         const response = await api.post(`/writing/projects/${projectId}/references`, {
             paper_id: paperId,
             source,
@@ -32,7 +32,7 @@ export const writingApi = {
     /**
      * Add a reference from search results
      */
-    addReferenceFromSearch: async (projectId: string, paper: Paper): Promise<any> => {
+    addReferenceFromSearch: async (projectId: string, paper: Paper): Promise<{ success: boolean; reference?: { id: string; citation_key: string; paper: Paper }; message?: string }> => {
         const response = await api.post(`/writing/projects/${projectId}/references/from-search`, paper);
         return response.data;
     },
@@ -52,7 +52,7 @@ export const writingApi = {
         referenceIds?: string[],
         style: string = 'academic',
         includeGraphInfo: boolean = true
-    ): Promise<{ success: boolean, review: any }> => {
+    ): Promise<{ success: boolean, review: { content: string; style: string } }> => {
         const response = await api.post(`/writing/projects/${projectId}/review/generate`, {
             reference_ids: referenceIds,
             style,

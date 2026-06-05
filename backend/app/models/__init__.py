@@ -17,11 +17,18 @@ from .schemas import (
     IntentClassificationResult,
     CitationFunction,
     CitationSentiment,
+    NetworkMetrics,
+    ResearchGapItem,
+    ResearchGapResponse,
+    ChatMessage,
+    SectionDraft,
+    ConversationSummary,
+    ConversationListResponse,
 )
 
 __all__ = [
     "Paper",
-    "Author", 
+    "Author",
     "CitationEdge",
     "CitationIntent",
     "CitationFunction",
@@ -37,4 +44,11 @@ __all__ = [
     "AnnotationUpdate",
     "CrawlProgress",
     "IntentClassificationResult",
+    "NetworkMetrics",
+    "ResearchGapItem",
+    "ResearchGapResponse",
+    "ChatMessage",
+    "SectionDraft",
+    "ConversationSummary",
+    "ConversationListResponse",
 ]

@@ -5,6 +5,7 @@ Documentation: https://www.ncbi.nlm.nih.gov/books/NBK25500/
 """
 import httpx
 import asyncio
+import json
 import logging
 import xml.etree.ElementTree as ET
 from typing import List, Optional, Dict, Any
@@ -101,7 +102,6 @@ class PubMedCrawler:
             return []
         
         try:
-            import json
             data = json.loads(search_result)
             pmids = data.get("esearchresult", {}).get("idlist", [])
             

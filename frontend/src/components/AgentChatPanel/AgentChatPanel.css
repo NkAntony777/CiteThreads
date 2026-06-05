@@ -1,0 +1,35 @@
+.agent-chat-panel {
+    width: 100%;
+    max-width: 880px;
+    margin: 0 auto;
+}
+
+.agent-chat-error {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.agent-chat-output {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+    min-height: 100px;
+    max-height: 360px;
+    overflow: auto;
+}
+
+.agent-chat-text {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.agent-chat-suggestions,
+.agent-chat-tools {
+    margin-top: 16px;
+}

@@ -130,6 +130,16 @@ body,
     height: calc(100vh - 64px);
 }
 
+.app-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 24px;
+    text-align: center;
+}
+
 /* Ant Design Overrides */
 .ant-layout-sider-collapsed+.ant-layout-content {
     transition: margin-left 0.2s;

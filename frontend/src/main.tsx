@@ -24,7 +24,7 @@ const Root: React.FC = () => {
             locale={locale}
             theme={{
                 token: {
-                    colorPrimary: '#1890ff',
+                    colorPrimary: '#3b82f6',
                     borderRadius: 6,
                 },
             }}

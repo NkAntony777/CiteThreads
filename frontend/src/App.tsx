@@ -1,156 +1,76 @@
 /**
  * CiteThreads - Main App Component
+ *
+ * 2026-06 refactor: the entire app is now a single ChatGPT-style
+ * surface (ChatView) with the conversation list as a left sider.
+ * Search, snowball, and CTDP long-form drafting all live inside
+ * one chat session — the user just types in plain language.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layout, Typography, Button, Space, Tooltip, Dropdown, message } from 'antd';
+import { Layout, Button, Tooltip, Space } from 'antd';
 import {
-    MenuUnfoldOutlined,
-    MenuFoldOutlined,
-    DownloadOutlined,
     GithubOutlined,
     SettingOutlined,
     FolderOutlined,
-    RobotOutlined,
     ShareAltOutlined,
-    EditOutlined
 } from '@ant-design/icons';
-import {
-    SearchBar,
-    GraphCanvas,
-    NodePanel,
-    AISettings,
-    ProjectList,
-    EdgePanel,
-    GraphFilters
-} from './components';
-import { WritingAssistant } from './components/WritingAssistant';
+import { ChatView } from './components/ChatView';
+import { AISettings } from './components/AISettings';
+import { HistoryPanel } from './components/HistoryPanel';
 import { useGraphStore } from './stores/graphStore';
-import { projectApi } from './services/api';
-import { initializeAI, aiConfigService } from './services/aiConfig';
+import { chatApi } from './services/chatApi';
+import { initializeAI } from './services/aiConfig';
 import './App.css';
 
-const { Header, Sider, Content } = Layout;
-const { Title } = Typography;
+const { Header, Content } = Layout;
 
 const App: React.FC = () => {
     const { t } = useTranslation();
-    const [siderCollapsed, setSiderCollapsed] = useState(false);
+    const { currentProject } = useGraphStore();
     const [settingsVisible, setSettingsVisible] = useState(false);
-    const [projectListVisible, setProjectListVisible] = useState(false);
-    const [viewMode, setViewMode] = useState<'graph' | 'writing'>('graph');
-    const { currentProject, loadProject, analyzeProject, buildProgress } = useGraphStore();
+    const [historyVisible, setHistoryVisible] = useState(false);
 
-    // Initialize AI config on mount
-    React.useEffect(() => {
-        initializeAI().catch(e => console.error('Failed to initialize AI:', e));
+    // On mount: try to restore the most recent conversation so the
+    // user lands in their last thread. If none exist, ChatView
+    // renders an empty state with prompt suggestions.
+    useEffect(() => {
+        initializeAI().catch((e) => console.error('Failed to initialize AI:', e));
+        chatApi
+            .list()
+            .then(async (items) => {
+                if (items.length > 0 && !currentProject) {
+                    try {
+                        const full = await chatApi.getFull(items[0].id);
+                        useGraphStore.getState().setProject(full);
+                    } catch (e) {
+                        console.error('Failed to restore last conversation:', e);
+                    }
+                }
+            })
+            .catch((e) => console.error('Failed to list conversations:', e));
     }, []);
-
-    const handleAnalyze = async () => {
-        if (!currentProject) return;
-
-        // Ensure AI is configured and synced
-        const chatConfig = aiConfigService.getConfig();
-        if (!chatConfig?.apiKey) {
-            message.error(t('app.pleaseConfigureApiKey'));
-            setSettingsVisible(true);
-            return;
-        }
-
-        try {
-            message.loading({ content: t('app.syncingAiConfig'), key: 'analyzing' });
-
-            // Force sync config to backend
-            await aiConfigService.applyConfig(chatConfig);
-            // Embedding sync removed as per user request
-
-            await analyzeProject();
-            message.success({ content: t('app.aiAnalysisComplete'), key: 'analyzing' });
-        } catch (e) {
-            message.error({ content: t('app.aiAnalysisFailed'), key: 'analyzing' });
-        }
-    };
-
-    const handleExport = (format: 'bibtex' | 'ris' | 'json') => {
-        if (!currentProject) {
-            message.warning(t('app.pleaseCreateGraphFirst'));
-            return;
-        }
-
-        const url = projectApi.exportUrl(currentProject.metadata.id, format);
-        window.open(url, '_blank');
-    };
-
-    const handleSelectProject = useCallback(async (projectId: string) => {
-        try {
-            await loadProject(projectId);
-            message.success(t('app.projectLoaded'));
-        } catch (e) {
-            message.error(t('app.loadProjectFailed'));
-        }
-    }, [loadProject, t]);
-
-    const exportMenuItems = [
-        { key: 'bibtex', label: t('app.exportBibtex'), onClick: () => handleExport('bibtex') },
-        { key: 'ris', label: t('app.exportRis'), onClick: () => handleExport('ris') },
-        { key: 'json', label: t('app.exportJson'), onClick: () => handleExport('json') },
-    ];
 
     return (
         <Layout className="app-layout">
-            {/* Header */}
-            <Header className="app-header">
+            {/* Floating top bar — minimal, ChatGPT-style */}
+            <Header className="app-header app-header--floating">
                 <div className="header-left">
-                    <Button
-                        type="text"
-                        icon={siderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                        onClick={() => setSiderCollapsed(!siderCollapsed)}
-                        style={{ color: '#666', fontSize: '18px', marginRight: 8 }}
-                    />
                     <div className="logo">
                         <ShareAltOutlined className="logo-icon" />
-                        <Title level={4} className="logo-text">CiteThreads</Title>
+                        <span className="logo-text">CiteThreads</span>
                     </div>
                     <span className="tagline">{t('app.tagline')}</span>
-                    <Tooltip title={t('app.viewProjects')}>
-                        <Button
-                            type="default"
-                            className="header-action"
-                            icon={<FolderOutlined />}
-                            onClick={() => setProjectListVisible(true)}
-                            style={{ marginLeft: 16 }}
-                        >
-                            {t('app.myProjects')}
-                        </Button>
-                    </Tooltip>
                 </div>
-
                 <div className="header-right">
                     <Space>
-                        {currentProject && (
-                            <>
-                                <Tooltip title={t('app.aiIntentAnalysis')}>
-                                    <Button
-                                        icon={<RobotOutlined />}
-                                        onClick={handleAnalyze}
-                                        loading={buildProgress?.status === 'analyzing'}
-                                    >
-                                        {t('app.intentAnalysis')}
-                                    </Button>
-                                </Tooltip>
-                                <Tooltip title={t('app.aiWritingAssistant')}>
-                                    <Button
-                                        icon={<EditOutlined />}
-                                        onClick={() => setViewMode('writing')}
-                                    >
-                                        {t('app.writingAssistant')}
-                                    </Button>
-                                </Tooltip>
-                                <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
-                                    <Button icon={<DownloadOutlined />}>{t('app.export')}</Button>
-                                </Dropdown>
-                            </>
-                        )}
+                        <Tooltip title={t('app.viewProjects')}>
+                            <Button
+                                type="text"
+                                icon={<FolderOutlined />}
+                                onClick={() => setHistoryVisible(true)}
+                            />
+                        </Tooltip>
                         <Tooltip title={t('app.aiSettings')}>
                             <Button
                                 type="text"
@@ -169,41 +89,9 @@ const App: React.FC = () => {
                 </div>
             </Header>
 
-            <Layout>
-                {/* Sidebar - Search & Controls */}
-                <Sider
-                    width={380}
-                    collapsedWidth={0}
-                    collapsed={siderCollapsed}
-                    className="app-sider"
-                    theme="light"
-                >
-
-                    <div className="sider-content">
-                        <SearchBar />
-                        {currentProject && <GraphFilters />}
-                    </div>
-                </Sider>
-
-                {/* Main Content - Graph Visualization or Writing Assistant */}
-                <Content className="app-content">
-                    {viewMode === 'graph' ? (
-                        <GraphCanvas />
-                    ) : (
-                        currentProject && (
-                            <WritingAssistant
-                                projectId={currentProject.metadata.id}
-                                graphNodes={currentProject.graph?.nodes || []}
-                                onBack={() => setViewMode('graph')}
-                            />
-                        )
-                    )}
-                </Content>
-            </Layout>
-
-            {/* Node Detail Panel */}
-            <NodePanel />
-            <EdgePanel />
+            <Content className="app-content">
+                <ChatView />
+            </Content>
 
             {/* AI Settings Panel */}
             <AISettings
@@ -211,16 +99,13 @@ const App: React.FC = () => {
                 onClose={() => setSettingsVisible(false)}
             />
 
-            {/* Project List Panel */}
-            <ProjectList
-                visible={projectListVisible}
-                onClose={() => setProjectListVisible(false)}
-                onSelectProject={handleSelectProject}
-                currentProjectId={currentProject?.metadata.id}
+            {/* History panel (multi-conversation sider) */}
+            <HistoryPanel
+                visible={historyVisible}
+                onClose={() => setHistoryVisible(false)}
             />
         </Layout>
     );
 };
 
 export default App;
-

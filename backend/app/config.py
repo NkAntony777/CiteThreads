@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
-    debug: bool = True
+    debug: bool = False
     
     # CORS
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
@@ -20,7 +20,19 @@ class Settings(BaseSettings):
     # API Keys
     siliconflow_api_key: str = ""
     semantic_scholar_api_key: str = ""
-    
+
+    # Auth: optional shared bearer token. When set (or
+    # CITETHREADS_AUTH_TOKEN env var is set), every non-public endpoint
+    # requires `Authorization: Bearer <token>`. See app/auth.py.
+    auth_token: str = ""
+
+    # Per-user store (P2-1). When CITETHREADS_USERS_JSON points at a
+    # JSON file of {user_id, token, role, rate_limit_per_minute,
+    # monthly_token_budget} entries, the auth layer uses per-user
+    # tokens and the dev single-secret fallback is disabled.
+    # Otherwise the legacy single-token behaviour is preserved.
+    users_json_path: str = ""
+
     # Data Storage
     data_dir: str = "./data"
     

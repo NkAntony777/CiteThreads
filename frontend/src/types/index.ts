@@ -75,6 +75,10 @@ export interface ProjectMetadata {
 export interface Project {
     metadata: ProjectMetadata;
     graph: GraphData;
+    // 2026-06: each project is also a chat conversation. The list
+    // of ChatMessage turns the agent runtime writes. Defaults to
+    // empty for projects created before the chat feature.
+    chat_history?: ChatMessage[];
 }
 
 // Crawl progress
@@ -170,8 +174,34 @@ export interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: string;
+    // Legacy fields kept for back-compat with the writing chat
+    // tab. New code reads the snake_case variants.
     paperSuggestions?: Paper[];
     actionType?: string;
+    // 2026-06: structured surfaces the agent runtime attaches to
+    // each assistant turn.
+    tool_calls?: Array<Record<string, unknown>>;
+    paper_suggestions?: Paper[];
+    section_drafts?: SectionDraft[];
+}
+
+/** A single section produced by CTDP compose. */
+export interface SectionDraft {
+    section: string;
+    content: string;
+    citations?: string[];
+}
+
+/** Lightweight summary used by the conversation sider. */
+export interface ConversationSummary {
+    id: string;
+    name: string;
+    created_at: string;
+    updated_at: string;
+    status: string;
+    paper_count: number;
+    section_draft_count: number;
+    last_message_preview?: string;
 }
 
 // Literature review draft
@@ -188,5 +218,68 @@ export interface WritingSearchResult {
     total: number;
     sourcesSearched: string[];
     errors: Record<string, string>;
+}
+
+// ============ Agent Runtime Types ============
+
+/**
+ * Discriminator for the SSE events emitted by /api/agent/chat/stream.
+ * Mirrors the backend EVT_* constants in
+ * ``backend/app/agent_runtime/runtime.py``.
+ */
+export type AgentEventType =
+    | 'text_delta'
+    | 'tool_start'
+    | 'tool_end'
+    | 'paper_suggestions'
+    | 'error'
+    | 'done';
+
+export interface AgentToolCall {
+    tool: string;
+    arguments: Record<string, unknown>;
+    result_preview: string;
+    result_raw?: string;
+    latency_ms: number;
+    error: string | null;
+    tool_call_id?: string | null;
+}
+
+export interface AgentEvent {
+    type: AgentEventType;
+    /** Per-event payload. See the AgentEventType union for details. */
+    [key: string]: unknown;
+}
+
+export interface AgentChatRequest {
+    message: string;
+    project_id?: string;
+    history?: Array<{ role: string; content: string }>;
+    extra_context?: string;
+}
+
+/**
+ * Handler interface for the agent SSE stream. Each callback is
+ * optional; the runtime never throws if a handler is missing.
+ */
+export interface AgentStreamHandlers {
+    onOpen?: () => void;
+    onTextDelta?: (delta: string) => void;
+    onToolStart?: (tool: string, args: Record<string, unknown>, toolCallId?: string) => void;
+    onToolEnd?: (record: AgentToolCall) => void;
+    onPaperSuggestions?: (papers: Paper[]) => void;
+    onError?: (message: string, code?: string) => void;
+    onDone?: (state: AgentDoneState) => void;
+    onPing?: () => void;
+}
+
+export interface AgentDoneState {
+    iterations: number;
+    truncated: boolean;
+    content: string;
+    action_type?: string | null;
+    paper_suggestions: Paper[];
+    tool_calls: AgentToolCall[];
+    error: string | null;
 }
 

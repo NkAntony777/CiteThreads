@@ -1,6 +1,15 @@
 /**
  * WritingAssistant - AI Paper Writing Assistant Component
- * Combines literature review and AI writing capabilities
+ *
+ * 2026-06 refactor: the standalone "Generate Literature Review"
+ * tab was removed. The CTDP compose phase (POST /draft/.../compose)
+ * owns the literature review step as part of the 6-section
+ * long-form pipeline (introduction / literature_review / methodology
+ * / results / discussion / conclusion). This component now exposes
+ * three tabs in priority order:
+ *   - references (left sider, auto-filled from project graph)
+ *   - draft (CTDP composer)
+ *   - ai chat (per-turn polish + agent chat)
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +18,6 @@ import {
     Typography,
     Button,
     Space,
-    Card,
     List,
     Input,
     Tabs,
@@ -17,32 +25,37 @@ import {
     Spin,
     Empty,
     Modal,
-    Select,
     Tooltip,
     Popconfirm,
-    Switch
+    Switch,
+    Drawer,
 } from 'antd';
 import {
     PlusOutlined,
     DeleteOutlined,
     SendOutlined,
-    FileTextOutlined,
     SearchOutlined,
     DownloadOutlined,
     RobotOutlined,
     BookOutlined,
     ArrowLeftOutlined,
-    CopyOutlined
+    CopyOutlined,
+    RocketOutlined,
+    ApiOutlined,
+    CloseOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { writingApi } from '../../services/writingApi';
 import CanvasEditor, { CanvasEditorHandle } from './CanvasEditor';
 import FullscreenCanvas from './FullscreenCanvas';
 import { PaperSearchPanel } from '../PaperSearchPanel';
-import type { Paper, Reference } from '../../types';
+import { DraftGenerator } from '../DraftGenerator';
+import { AgentChatPanel } from '../AgentChatPanel';
+import { ResizableShell } from './ResizableShell';
+import type { ChatMessage, Paper, Reference } from '../../types';
 import './WritingAssistant.css';
 
-const { Header, Sider, Content } = Layout;
+const { Header } = Layout;
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { TabPane } = Tabs;
@@ -57,6 +70,7 @@ interface WritingAssistantProps {
 interface ChatHistoryItem {
     role: 'user' | 'assistant';
     content: string;
+    timestamp?: string;
 }
 
 const WritingAssistant: React.FC<WritingAssistantProps> = ({
@@ -70,11 +84,6 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
     const [references, setReferences] = useState<Reference[]>([]);
     const [loadingRefs, setLoadingRefs] = useState(false);
 
-    // Literature Review state
-    const [reviewContent, setReviewContent] = useState<string>('');
-    const [generatingReview, setGeneratingReview] = useState(false);
-    const [reviewStyle, setReviewStyle] = useState<string>('academic');
-
     // Chat state
     const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
     const [chatInput, setChatInput] = useState('');
@@ -84,14 +93,24 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
     // Search state
     const [searchModalVisible, setSearchModalVisible] = useState(false);
 
-    // Active tab
-    const [activeTab, setActiveTab] = useState('review');
+    // Agent chat drawer state
+    const [agentDrawerOpen, setAgentDrawerOpen] = useState(false);
+
+    // Active tab. The refactor removed the literature-review tab, so
+    // the natural first thing a writer sees is the references panel
+    // (left sider) plus the draft (CTDP) tab. AI chat is the last
+    // step (polish / clarify), so default to "draft".
+    const [activeTab, setActiveTab] = useState('draft');
 
     // Direct to Canvas mode
     const [directToCanvas, setDirectToCanvas] = useState(false);
 
     // Fullscreen mode
     const [isFullscreen, setIsFullscreen] = useState(false);
+
+    // Guard so we only auto-fill references from the citation
+    // network once per project mount, not on every render.
+    const autoFillDoneRef = useRef(false);
 
     // Canvas Editor Ref
     const canvasEditorRef = useRef<CanvasEditorHandle>(null);
@@ -109,7 +128,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
         };
     }, [graphNodes.length]);
 
-    // Load initial data (References, Review, Chat)
+    // Load initial data (References, Chat)
     useEffect(() => {
         const loadData = async () => {
             setLoadingRefs(true);
@@ -118,18 +137,13 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                 const refsData = await writingApi.getReferences(projectId);
                 setReferences(refsData.references || []);
 
-                // Load saved review
-                const reviewData = await writingApi.getReview(projectId);
-                if (reviewData.content) {
-                    setReviewContent(reviewData.content);
-                }
-
                 // Load saved chat history
                 const chatData = await writingApi.getChatHistory(projectId);
                 if (chatData.history && chatData.history.length > 0) {
                     setChatHistory(chatData.history.map(h => ({
-                        role: h.role as 'user' | 'assistant',
-                        content: h.content
+                        role: h.role === 'assistant' ? 'assistant' : 'user',
+                        content: h.content,
+                        timestamp: h.timestamp
                     })));
                 }
             } catch (error) {
@@ -142,32 +156,57 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
 
         if (projectId) {
             loadData();
+            // Reset the auto-fill guard so a freshly-loaded project
+            // gets its hidden-context papers imported once.
+            autoFillDoneRef.current = false;
         }
     }, [projectId, t]);
 
-    // Save Review Content (Debounced)
+    // Auto-fill references from the project graph (the "hidden
+    // context" the writing agent needs). Runs once per project:
+    // adds every graphNode that isn't already a reference. We do
+    // it client-side rather than server-side so a refresh doesn't
+    // re-import. Failures on individual papers are logged and
+    // skipped so one bad record can't block the rest.
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (reviewContent && projectId) {
-                writingApi.saveReview(projectId, reviewContent)
-                    .catch(e => console.error('Failed to save review:', e));
-            }
-        }, 2000);
+        if (autoFillDoneRef.current) return;
+        if (!projectId) return;
+        if (graphNodes.length === 0) return;
+        if (loadingRefs) return;  // wait for initial references load
+        autoFillDoneRef.current = true;
 
-        return () => clearTimeout(timer);
-    }, [reviewContent, projectId]);
+        const existing = new Set(references.map(r => r.paper?.id).filter(Boolean));
+        const toAdd = graphNodes.filter(p => p && p.id && !existing.has(p.id));
+        if (toAdd.length === 0) return;
+
+        (async () => {
+            let added = 0;
+            for (const paper of toAdd) {
+                try {
+                    const res = await writingApi.addReference(projectId, paper.id, 'graph');
+                    if (res?.success) added += 1;
+                } catch (e) {
+                    console.error('Auto-add reference failed for', paper.id, e);
+                }
+            }
+            if (added > 0) {
+                message.success(t('writingAssistant.autoAddedRefs', { count: added }));
+                loadReferences();
+            }
+        })();
+    }, [projectId, graphNodes, loadingRefs, references, t]);
 
     // Save Chat History
     useEffect(() => {
         if (chatHistory.length > 0 && projectId) {
-            const historyToSave = chatHistory.map(h => ({
+            const nowIso = new Date().toISOString();
+            const historyToSave: ChatMessage[] = chatHistory.map((h) => ({
                 role: h.role,
                 content: h.content,
-                timestamp: (h as any).timestamp || new Date().toISOString()
+                timestamp: h.timestamp ?? nowIso,
             }));
 
-            // Cast to any to bypass strict type check for now, or we should update local state type
-            writingApi.saveChatHistory(projectId, historyToSave as any[])
+            writingApi.saveChatHistory(projectId, historyToSave)
                 .catch(e => console.error('Failed to save chat history:', e));
         }
     }, [chatHistory, projectId]);
@@ -208,37 +247,13 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
         }
     };
 
-    const handleGenerateReview = async () => {
-        if (references.length === 0) {
-            message.warning(t('writingAssistant.pleaseAddRefs'));
-            return;
-        }
-
-        setGeneratingReview(true);
-        try {
-            const result = await writingApi.generateReview(
-                projectId,
-                undefined,
-                reviewStyle,
-                true
-            );
-            if (result.success) {
-                setReviewContent(result.review.content);
-                message.success(t('writingAssistant.reviewGenerated'));
-            }
-        } catch (error: any) {
-            message.error(error?.response?.data?.detail || t('writingAssistant.generateFailed'));
-        } finally {
-            setGeneratingReview(false);
-        }
-    };
-
     const handleChatSend = async () => {
         if (!chatInput.trim()) return;
 
         const userMessage = chatInput.trim();
+        const userTimestamp = new Date().toISOString();
         setChatInput('');
-        setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
+        setChatHistory(prev => [...prev, { role: 'user', content: userMessage, timestamp: userTimestamp }]);
         setChatLoading(true);
 
         try {
@@ -256,7 +271,8 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
 
                 setChatHistory(prev => [...prev, {
                     role: 'assistant',
-                    content: assistantContent
+                    content: assistantContent,
+                    timestamp: result.message?.timestamp || new Date().toISOString(),
                 }]);
 
                 // Handle paper suggestions
@@ -282,7 +298,8 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
 
             setChatHistory(prev => [...prev, {
                 role: 'assistant',
-                content: `${t('writingAssistant.sorryError')}${errorDetail}\n${t('writingAssistant.checkConsole')}`
+                content: `${t('writingAssistant.sorryError')}${errorDetail}\n${t('writingAssistant.checkConsole')}`,
+                timestamp: new Date().toISOString(),
             }]);
         } finally {
             setChatLoading(false);
@@ -318,6 +335,12 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                 </Space>
                 <Space>
                     <Button
+                        icon={<ApiOutlined />}
+                        onClick={() => setAgentDrawerOpen(true)}
+                    >
+                        {t('agent.askAgent')}
+                    </Button>
+                    <Button
                         icon={<SearchOutlined />}
                         onClick={() => setSearchModalVisible(true)}
                     >
@@ -333,141 +356,104 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                 </Space>
             </Header>
 
-            <Layout>
-                {/* Left Sidebar - References */}
-                <Sider width={300} className="ref-sider">
-                    <div className="sider-header">
-                        <Title level={5}>
-                            <BookOutlined /> {t('writingAssistant.references')} ({references.length})
-                        </Title>
-                    </div>
+            {/*
+             * 3-panel resizable shell. The right (canvas) side is
+             * collapsed by default — the writer gets the full main
+             * column until they explicitly pull the canvas out.
+             */}
+            <ResizableShell
+                leftLabel="References"
+                rightLabel="Canvas"
+                left={
+                    <div className="ref-panel">
+                        <div className="sider-header">
+                            <Title level={5}>
+                                <BookOutlined /> {t('writingAssistant.references')} ({references.length})
+                            </Title>
+                        </div>
 
-                    <div className="ref-list">
-                        {loadingRefs ? (
-                            <Spin tip={t('common.loading')} />
-                        ) : references.length === 0 ? (
-                            <Empty
-                                description={t('writingAssistant.noReferences')}
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            >
-                                <Text type="secondary">
-                                    {t('writingAssistant.clickToAddRef')}
-                                </Text>
-                            </Empty>
-                        ) : (
+                        <div className="ref-list">
+                            {loadingRefs ? (
+                                <Spin tip={t('common.loading')} />
+                            ) : references.length === 0 ? (
+                                <Empty
+                                    description={t('writingAssistant.noReferences')}
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                >
+                                    <Text type="secondary">
+                                        {t('writingAssistant.clickToAddRef')}
+                                    </Text>
+                                </Empty>
+                            ) : (
+                                <List
+                                    size="small"
+                                    dataSource={references}
+                                    renderItem={(ref: Reference) => (
+                                        <List.Item
+                                            actions={[
+                                                <Popconfirm
+                                                    title={t('writingAssistant.removeRefConfirm')}
+                                                    onConfirm={() => handleRemoveReference(ref.id)}
+                                                >
+                                                    <Button
+                                                        type="text"
+                                                        danger
+                                                        size="small"
+                                                        icon={<DeleteOutlined />}
+                                                    />
+                                                </Popconfirm>,
+                                            ]}
+                                        >
+                                            <List.Item.Meta
+                                                title={
+                                                    <Tooltip title={ref.paper.title}>
+                                                        <Text ellipsis style={{ maxWidth: 180 }}>
+                                                            [{ref.citationKey}] {ref.paper.title}
+                                                        </Text>
+                                                    </Tooltip>
+                                                }
+                                                description={
+                                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                                        {ref.paper.year} · {ref.source}
+                                                    </Text>
+                                                }
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                            )}
+                        </div>
+
+                        <div className="graph-papers">
+                            <Title level={5}>{t('writingAssistant.graphPapers')}</Title>
                             <List
                                 size="small"
-                                dataSource={references}
-                                renderItem={(ref: Reference) => (
+                                dataSource={graphNodes}
+                                pagination={graphPagination}
+                                renderItem={(paper: Paper) => (
                                     <List.Item
                                         actions={[
-                                            <Popconfirm
-                                                title={t('writingAssistant.removeRefConfirm')}
-                                                onConfirm={() => handleRemoveReference(ref.id)}
-                                            >
-                                                <Button
-                                                    type="text"
-                                                    danger
-                                                    size="small"
-                                                    icon={<DeleteOutlined />}
-                                                />
-                                            </Popconfirm>
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<PlusOutlined />}
+                                                onClick={() => handleAddFromGraph(paper)}
+                                            />,
                                         ]}
                                     >
-                                        <List.Item.Meta
-                                            title={
-                                                <Tooltip title={ref.paper.title}>
-                                                    <Text ellipsis style={{ maxWidth: 180 }}>
-                                                        [{ref.citationKey}] {ref.paper.title}
-                                                    </Text>
-                                                </Tooltip>
-                                            }
-                                            description={
-                                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                                    {ref.paper.year} · {ref.source}
-                                                </Text>
-                                            }
-                                        />
+                                        <Tooltip title={paper.title}>
+                                            <Text ellipsis style={{ maxWidth: 200 }}>
+                                                {paper.title}
+                                            </Text>
+                                        </Tooltip>
                                     </List.Item>
                                 )}
                             />
-                        )}
+                        </div>
                     </div>
-
-                    {/* Available papers from graph */}
-                    <div className="graph-papers">
-                        <Title level={5}>{t('writingAssistant.graphPapers')}</Title>
-                        <List
-                            size="small"
-                            dataSource={graphNodes}
-                            pagination={graphPagination}
-                            renderItem={(paper: Paper) => (
-                                <List.Item
-                                    actions={[
-                                        <Button
-                                            type="text"
-                                            size="small"
-                                            icon={<PlusOutlined />}
-                                            onClick={() => handleAddFromGraph(paper)}
-                                        />
-                                    ]}
-                                >
-                                    <Tooltip title={paper.title}>
-                                        <Text ellipsis style={{ maxWidth: 200 }}>
-                                            {paper.title}
-                                        </Text>
-                                    </Tooltip>
-                                </List.Item>
-                            )}
-                        />
-                    </div>
-                </Sider>
-
-                {/* Main Content */}
-                <Content className="writing-content">
-                    <Tabs activeKey={activeTab} onChange={setActiveTab}>
-                        <TabPane
-                            tab={<span><FileTextOutlined />{t('writingAssistant.literatureReview')}</span>}
-                            key="review"
-                        >
-                            <div className="review-section">
-                                <div className="review-controls">
-                                    <Space>
-                                        <Select
-                                            value={reviewStyle}
-                                            onChange={setReviewStyle}
-                                            style={{ width: 120 }}
-                                        >
-                                            <Select.Option value="academic">{t('writingAssistant.academicStyle')}</Select.Option>
-                                            <Select.Option value="concise">{t('writingAssistant.conciseStyle')}</Select.Option>
-                                            <Select.Option value="detailed">{t('writingAssistant.detailedStyle')}</Select.Option>
-                                        </Select>
-                                        <Button
-                                            type="primary"
-                                            icon={<RobotOutlined />}
-                                            loading={generatingReview}
-                                            onClick={handleGenerateReview}
-                                        >
-                                            {t('writingAssistant.generateReview')}
-                                        </Button>
-                                    </Space>
-                                </div>
-
-                                <div className="review-content">
-                                    {reviewContent ? (
-                                        <Card className="markdown-card">
-                                            <ReactMarkdown>{reviewContent}</ReactMarkdown>
-                                        </Card>
-                                    ) : (
-                                        <Empty
-                                            description={t('writingAssistant.addRefsThenGenerate')}
-                                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </TabPane>
-
+                }
+                center={
+                    <Tabs activeKey={activeTab} onChange={setActiveTab} className="writing-tabs">
                         <TabPane
                             tab={<span><RobotOutlined />{t('writingAssistant.aiWriting')}</span>}
                             key="writing"
@@ -524,7 +510,6 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                     )}
                                 </div>
 
-                                {/* Paper suggestions */}
                                 {paperSuggestions.length > 0 && (
                                     <div className="paper-suggestions">
                                         <Title level={5}>{t('writingAssistant.foundPapers')}</Title>
@@ -539,7 +524,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                                             onClick={() => handleAddFromSearch(paper)}
                                                         >
                                                             {t('common.add')}
-                                                        </Button>
+                                                        </Button>,
                                                     ]}
                                                 >
                                                     <List.Item.Meta
@@ -589,18 +574,23 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                                 </div>
                             </div>
                         </TabPane>
-                    </Tabs>
-                </Content>
 
-                {/* Right Canvas Editor */}
-                <div className="canvas-panel">
+                        <TabPane
+                            tab={<span><RocketOutlined />{t('draftGenerator.tabLabel')}</span>}
+                            key="draft"
+                        >
+                            <DraftGenerator projectId={projectId} />
+                        </TabPane>
+                    </Tabs>
+                }
+                right={
                     <CanvasEditor
                         ref={canvasEditorRef}
                         projectId={projectId}
                         onFullscreen={() => setIsFullscreen(true)}
                     />
-                </div>
-            </Layout>
+                }
+            />
 
             {/* Search Modal */}
             <Modal
@@ -617,6 +607,33 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
                     limit={15}
                 />
             </Modal>
+
+            {/* Agent Chat Drawer */}
+            <Drawer
+                title={
+                    <Space>
+                        <ApiOutlined />
+                        {t('agent.panelTitle')}
+                    </Space>
+                }
+                placement="right"
+                width={520}
+                open={agentDrawerOpen}
+                onClose={() => setAgentDrawerOpen(false)}
+                destroyOnClose
+                extra={
+                    <Button
+                        type="text"
+                        icon={<CloseOutlined />}
+                        onClick={() => setAgentDrawerOpen(false)}
+                    />
+                }
+            >
+                <AgentChatPanel
+                    projectId={projectId}
+                    extraContext={t('agent.writingContextHint')}
+                />
+            </Drawer>
 
             {/* Fullscreen Canvas with AI Chat */}
             {isFullscreen && (

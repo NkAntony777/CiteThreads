@@ -1,0 +1,40 @@
+# CiteThreads backend — local development compose file.
+#
+# This is *not* a production deployment; for that use the project-root
+# `docker-compose.yml` with the frontend service, or the image built
+# from `backend/Dockerfile` behind a real reverse proxy.
+#
+# Run:  docker compose -f backend/docker-compose.yml up --build
+# Stop: docker compose -f backend/docker-compose.yml down
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: citethreads-backend:dev
+    container_name: citethreads-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist project state, paper cache, and draft pipeline
+      # state across container restarts. The path is relative to
+      # the directory the compose file is in.
+      - ../data:/app/data
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # Defaults that match the dev workflow. .env overrides any
+      # of these if present.
+      PYTHONUNBUFFERED: "1"
+      DATA_DIR: /app/data
+      AUTH_TOKEN: ""
+      DEBUG: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

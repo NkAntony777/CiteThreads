@@ -3,19 +3,27 @@ Smart Citation Intent Classifier
 Optimized for robustness and accuracy using LLM only.
 Embedding pre-filtering has been removed as per user request.
 """
+
 import logging
 import json
 import asyncio
+import hashlib
 import re
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Callable
 from dataclasses import dataclass
 from openai import AsyncOpenAI
 
-from ..models import Paper, CitationIntent, IntentClassificationResult, CitationFunction, CitationSentiment
+from ..models import (
+    Paper,
+    CitationIntent,
+    IntentClassificationResult,
+    CitationFunction,
+    CitationSentiment,
+)
 from ..config import settings
+from .llm_factory import create_llm_client, configure_llm_client
 
 logger = logging.getLogger(__name__)
-
 
 
 # Deep Insight Analysis Prompt (Text Format)
@@ -99,6 +107,7 @@ REASONING: [原因]
 @dataclass
 class ClassificationStats:
     """Statistics for a classification batch"""
+
     total: int = 0
     llm_classified: int = 0
     errors: int = 0
@@ -109,107 +118,137 @@ class SmartCitationClassifier:
     Smart citation intent classifier using LLM only.
     Uses robust text parsing instead of JSON.
     """
-    
+
     def __init__(self):
         self.llm_client: Optional[AsyncOpenAI] = None
         self.llm_model: str = settings.ai_model
-        self._cache: dict = {}
+        self.request_timeout: float = 30.0
+        self._cache: dict[str, IntentClassificationResult] = {}
         self._stats = ClassificationStats()
-        
-        # Initialize LLM client if API key available
-        if settings.siliconflow_api_key:
-            self.llm_client = AsyncOpenAI(
-                api_key=settings.siliconflow_api_key,
-                base_url=settings.ai_base_url
-            )
-    
+
+        self.llm_client = create_llm_client(timeout=self.request_timeout)
+
     def configure_llm(self, api_key: str, model: str, base_url: str):
         """Configure custom LLM for classification"""
-        self.llm_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-        self.llm_model = model
-        logger.info(f"LLM configured: model={model}")
-    
+        configure_llm_client(self, api_key, model, base_url, self.request_timeout)
+
     def reset_stats(self):
         """Reset classification statistics"""
         self._stats = ClassificationStats()
-    
+
     def get_stats(self) -> ClassificationStats:
         """Get current classification statistics"""
         return self._stats
-    
-    async def classify(self, citing: Paper, cited: Paper, contexts: List[str] = None) -> IntentClassificationResult:
+
+    def _make_cache_key(
+        self, citing_id: str, cited_id: str, contexts: Optional[List[str]]
+    ) -> str:
+        base_key = f"{citing_id}|{cited_id}"
+
+        if not contexts:
+            return base_key
+
+        normalized_contexts = [
+            ctx.strip() for ctx in contexts[:3] if isinstance(ctx, str) and ctx.strip()
+        ]
+        if not normalized_contexts:
+            return base_key
+
+        context_text = "\n...\n".join(normalized_contexts)
+        context_hash = hashlib.sha256(context_text.encode("utf-8")).hexdigest()
+        return f"{base_key}|ctx:{context_hash}"
+
+    async def classify(
+        self, citing: Paper, cited: Paper, contexts: Optional[List[str]] = None
+    ) -> IntentClassificationResult:
         """
         Classify citation intent using LLM.
         """
-        cache_key = f"{citing.id}|{cited.id}"
-        if contexts and cache_key in self._cache:
-             pass
-        elif cache_key in self._cache:
+        cache_key = self._make_cache_key(citing.id, cited.id, contexts)
+        if cache_key in self._cache:
             return self._cache[cache_key]
-        
+
         self._stats.total += 1
-        
+
         result = await self._classify_with_llm(citing, cited, contexts)
         self._stats.llm_classified += 1
         self._cache[cache_key] = result
         return result
-    
+
     async def classify_batch(
         self,
-        paper_pairs: List[Tuple[Paper, Paper, Optional[List[str]]]], # Added contexts to tuple
-        progress_callback: Optional[callable] = None
+        paper_pairs: List[
+            Tuple[Paper, Paper, Optional[List[str]]]
+        ],  # Added contexts to tuple
+        progress_callback: Optional["Callable[[int, int], None]"] = None,
     ) -> List[IntentClassificationResult]:
         """
         Classify multiple citation pairs using LLM.
         """
         if not paper_pairs:
             return []
-        
+
         self.reset_stats()
-        results = [None] * len(paper_pairs)
+        results: List[Optional[IntentClassificationResult]] = [None] * len(paper_pairs)
         llm_queue = []
-        
+
         for i, (citing, cited, contexts) in enumerate(paper_pairs):
-            cache_key = f"{citing.id}|{cited.id}"
-            
-            if cache_key in self._cache and not contexts: # Use cache if no new context to leverage
+            cache_key = self._make_cache_key(citing.id, cited.id, contexts)
+
+            if cache_key in self._cache:
                 results[i] = self._cache[cache_key]
                 continue
-            
+
             self._stats.total += 1
             llm_queue.append((i, citing, cited, contexts))
-        
+
         # Process LLM queue with concurrency limit
         if llm_queue:
             semaphore = asyncio.Semaphore(5)  # Moderate concurrency
-            
-            async def classify_one(idx: int, citing: Paper, cited: Paper, ctx: Optional[List[str]]):
+
+            async def classify_one(
+                idx: int, citing: Paper, cited: Paper, ctx: Optional[List[str]]
+            ):
                 async with semaphore:
                     try:
                         result = await self._classify_with_llm(citing, cited, ctx)
                     except Exception as e:
                         logger.error(f"Classification error: {e}")
                         result = IntentClassificationResult(
-                            intent=CitationIntent.UNKNOWN, 
-                            confidence=0.0, 
-                            reasoning=f"Error: {str(e)}"
+                            intent=CitationIntent.UNKNOWN,
+                            confidence=0.0,
+                            reasoning=f"Error: {str(e)}",
                         )
                     return idx, result
-            
-            tasks = [classify_one(idx, citing, cited, ctx) for idx, citing, cited, ctx in llm_queue]
+
+            tasks = [
+                classify_one(idx, citing, cited, ctx)
+                for idx, citing, cited, ctx in llm_queue
+            ]
             llm_results = await asyncio.gather(*tasks)
-            
+
             for idx, result in llm_results:
                 results[idx] = result
                 self._stats.llm_classified += 1
-                citing, cited, _ = paper_pairs[idx]
-                caching_key = f"{citing.id}|{cited.id}"
+                citing, cited, contexts = paper_pairs[idx]
+                caching_key = self._make_cache_key(citing.id, cited.id, contexts)
                 self._cache[caching_key] = result
-                
+
                 if progress_callback:
-                    progress_callback(len([r for r in results if r is not None]), len(paper_pairs))
-        
-        return results
+                    progress_callback(
+                        len([r for r in results if r is not None]), len(paper_pairs)
+                    )
+
+        for i, r in enumerate(results):
+            if r is None:
+                self._stats.errors += 1
+                results[i] = IntentClassificationResult(
+                    intent=CitationIntent.UNKNOWN,
+                    confidence=0.0,
+                    reasoning="Classification missing",
+                )
+
+        return [r for r in results if r is not None]
 
     def _extract_field(self, text: str, key: str, default: str = "") -> str:
         """Helper to extract value from Key: Value format"""
@@ -220,117 +259,142 @@ class SmartCitationClassifier:
             return match.group(1).strip()
         return default
 
-    async def _classify_with_llm(self, citing: Paper, cited: Paper, contexts: List[str] = None) -> IntentClassificationResult:
+    async def _classify_with_llm(
+        self, citing: Paper, cited: Paper, contexts: Optional[List[str]] = None
+    ) -> IntentClassificationResult:
         """Classify using LLM with context or abstract"""
         if not self.llm_client:
             return IntentClassificationResult(
                 intent=CitationIntent.UNKNOWN,
                 confidence=0.0,
-                reasoning="LLM not configured"
+                reasoning="LLM not configured",
             )
-        
+
         # Determine strictness and prompt based on data
         use_deep_insight = False
-        
+
         if contexts and len(contexts) > 0:
             use_deep_insight = True
             # Join top 3 contexts
             context_text = "\n...\n".join(contexts[:3])
             prompt = CLASSIFICATION_PROMPT_DEEP_INSIGHT.format(
                 citing_title=citing.title,
-                citing_abstract=citing.abstract[:300] or "No Abstract",
+                citing_abstract=(citing.abstract or "")[:300] or "No Abstract",
                 cited_title=cited.title,
-                cited_abstract=cited.abstract[:300] or "No Abstract",
-                citation_context=context_text
+                cited_abstract=(cited.abstract or "")[:300] or "No Abstract",
+                citation_context=context_text,
             )
         elif citing.abstract and cited.abstract:
             prompt = CLASSIFICATION_PROMPT_V2.format(
                 citing_title=citing.title,
                 citing_abstract=citing.abstract[:500] or "无摘要",
                 cited_title=cited.title,
-                cited_abstract=cited.abstract[:500] or "无摘要"
+                cited_abstract=cited.abstract[:500] or "无摘要",
             )
         else:
             prompt = CLASSIFICATION_PROMPT_TITLE_ONLY.format(
                 citing_title=citing.title,
                 citing_year=citing.year or "?",
                 cited_title=cited.title,
-                cited_year=cited.year or "?"
+                cited_year=cited.year or "?",
             )
-        
+
+        content: Optional[str] = None
+
         try:
-            response = await self.llm_client.chat.completions.create(
-                model=self.llm_model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=300
-                # removed json_object response format
+            response = await asyncio.wait_for(
+                self.llm_client.chat.completions.create(
+                    model=self.llm_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,
+                    max_tokens=300,
+                    # removed json_object response format
+                ),
+                timeout=self.request_timeout,
             )
-            
-            content = response.choices[0].message.content.strip()
-            
+
+            content = (response.choices[0].message.content or "").strip()
+
             # Robust Text Extraction
             intent_str = self._extract_field(content, "INTENT", "NEUTRAL").upper()
             confidence_str = self._extract_field(content, "CONFIDENCE", "0.7")
             reasoning = self._extract_field(content, "REASONING", "")
-            
+
             # Basic cleanup/parsing
             intent_map = {
                 "SUPPORT": CitationIntent.SUPPORT,
                 "OPPOSE": CitationIntent.OPPOSE,
-                "NEUTRAL": CitationIntent.NEUTRAL
+                "NEUTRAL": CitationIntent.NEUTRAL,
             }
             # Handle potential extra chars in intent (e.g. "SUPPORT.")
-            intent_clean = re.sub(r'[^A-Z]', '', intent_str)
-            intent = intent_map.get(intent_clean, intent_map.get(intent_str, CitationIntent.NEUTRAL))
-            
+            intent_clean = re.sub(r"[^A-Z]", "", intent_str)
+            intent = intent_map.get(
+                intent_clean, intent_map.get(intent_str, CitationIntent.NEUTRAL)
+            )
+
             try:
                 # Extract float even if there are other chars
-                conf_match = re.search(r'0\.\d+|1\.0|0', confidence_str)
+                conf_match = re.search(r"0\.\d+|1\.0|0", confidence_str)
                 confidence = float(conf_match.group(0)) if conf_match else 0.7
             except ValueError:
                 confidence = 0.7
 
             result = IntentClassificationResult(
-                intent=intent,
-                confidence=confidence,
-                reasoning=reasoning
+                intent=intent, confidence=confidence, reasoning=reasoning
             )
-            
+
             # Extract Deep Insight Fields if available
             if use_deep_insight:
                 # Function
                 func_str = self._extract_field(content, "FUNCTION", "UNKNOWN").upper()
-                func_map = {k: v for k, v in CitationFunction.__members__.items()} 
+                func_map = {k: v for k, v in CitationFunction.__members__.items()}
                 # Fuzzy match function key
                 func_key = next((k for k in func_map if k in func_str), "UNKNOWN")
-                result.citation_function = func_map.get(func_key, CitationFunction.UNKNOWN)
-                
+                result.citation_function = func_map.get(
+                    func_key, CitationFunction.UNKNOWN
+                )
+
                 # Sentiment
                 sent_str = self._extract_field(content, "SENTIMENT", "UNKNOWN").upper()
                 sent_map = {k: v for k, v in CitationSentiment.__members__.items()}
                 sent_key = next((k for k in sent_map if k in sent_str), "UNKNOWN")
-                result.citation_sentiment = sent_map.get(sent_key, CitationSentiment.UNKNOWN)
-                
+                result.citation_sentiment = sent_map.get(
+                    sent_key, CitationSentiment.UNKNOWN
+                )
+
                 imp_str = self._extract_field(content, "IMPORTANCE", "0")
                 try:
-                    import_match = re.search(r'[1-5]', imp_str)
-                    result.importance_score = int(import_match.group(0)) if import_match else 0
+                    import_match = re.search(r"[1-5]", imp_str)
+                    result.importance_score = (
+                        int(import_match.group(0)) if import_match else 0
+                    )
                 except ValueError:
                     result.importance_score = 0
-                    
-                result.key_concept = self._extract_field(content, "KEY_CONCEPT", None)
-            
+
+                key_concept = self._extract_field(content, "KEY_CONCEPT", "")
+                result.key_concept = key_concept or None
+
             return result
-        
-        except Exception as e:
-            logger.error(f"LLM call failed: {e}")
-            logger.debug(f"Failed content was: {content if 'content' in locals() else 'None'}")
-            # Return neutral on error, don't crash
+
+        except asyncio.TimeoutError as e:
+            self._stats.errors += 1
+            logger.error(
+                f"LLM classification timeout after {self.request_timeout}s: {citing.id} -> {cited.id}"
+            )
             return IntentClassificationResult(
-                intent=CitationIntent.NEUTRAL,
-                confidence=0.5,
-                reasoning=f"Analysis failed: {str(e)}"
+                intent=CitationIntent.UNKNOWN,
+                confidence=0.0,
+                reasoning="Timeout",
+            )
+
+        except Exception as e:
+            self._stats.errors += 1
+            logger.error(f"LLM call failed: {e}")
+            logger.debug(f"Failed content was: {content or 'None'}")
+            return IntentClassificationResult(
+                intent=CitationIntent.UNKNOWN,
+                confidence=0.0,
+                reasoning=f"Error: {str(e)}",
             )
 
 

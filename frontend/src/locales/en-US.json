@@ -39,7 +39,11 @@
         "syncingAiConfig": "Syncing AI config and starting analysis...",
         "aiAnalysisComplete": "AI analysis complete",
         "aiAnalysisFailed": "AI analysis failed",
-        "pleaseCreateGraphFirst": "Please build a graph first"
+        "pleaseCreateGraphFirst": "Please build a graph first",
+        "noProjectTitle": "No project selected",
+        "noProjectHint": "Pick a candidate paper in the SmartSearch panel and build a citation network",
+        "projectReadyTitle": "Project ready",
+        "projectReadyHint": "Citation network is being prepared in the background (non-blocking). You can start writing now."
     },
     "settings": {
         "title": "AI Service Configuration",
@@ -58,12 +62,16 @@
         "testConnection": "Test",
         "connectionSuccess": "Connection successful",
         "connectionFailed": "Connection failed",
+        "networkError": "Network error",
         "chatTestSuccess": "Chat model connection test successful!",
         "configSaved": "Chat model configuration saved",
         "clearAll": "Clear All",
         "allConfigCleared": "All configurations cleared",
         "pleaseEnterCompleteConfig": "Please fill in complete configuration",
-        "apiKeyEncryptedNote": "API keys are encrypted and stored locally in the browser, never uploaded to the server."
+        "apiKeyEncryptedNote": "API keys are encrypted and stored locally in the browser, never uploaded to the server.",
+        "apiKeyFromServerNote": "The API key is provided by the server via an environment variable (e.g. SILICONFLOW_API_KEY). It is never stored in or transmitted by the browser.",
+        "defaultKeyConfigured": "Default API key is configured on the server",
+        "defaultKeyMissing": "No default API key configured on the server. Set SILICONFLOW_API_KEY in the deployment environment."
     },
     "nodePanel": {
         "title": "Paper Details",
@@ -101,7 +109,18 @@
         "citationContext": "Citation Context",
         "citationId": "Citation ID",
         "analysisModel": "Analysis Model",
-        "unknownModel": "Unknown Model"
+        "unknownModel": "Unknown Model",
+        "citationFunctionBackground": "Background",
+        "citationFunctionMethodology": "Methodology",
+        "citationFunctionComparison": "Comparison",
+        "citationFunctionCritique": "Critique",
+        "citationFunctionBasis": "Basis",
+        "citationFunctionUnknown": "Unknown",
+        "sentimentPrefix": "Sentiment:",
+        "sentimentPositive": "Positive",
+        "sentimentNeutral": "Neutral",
+        "sentimentNegative": "Negative",
+        "sentimentUnknown": "Unknown"
     },
     "searchBar": {
         "placeholder": "Enter DOI, arXiv ID, or paper title...",
@@ -121,19 +140,24 @@
         "directionBoth": "Both",
         "directionForward": "References",
         "directionBackward": "Citations",
-        "reSearch": "Search Again",
-        "buildGraph": "Build Graph",
+        "reSearch": "Pick another",
         "startBuildingGraph": "Starting to build citation graph...",
         "buildComplete": "Graph build complete!",
         "papersAndCitations": " papers, {edges} citations (sorted by citation count)",
         "noDataRetry": "Failed to get paper data, possibly rate limited, please try again later",
         "buildFailed": "Graph build failed: ",
         "createProjectFailed": "Failed to create project",
+        "fetchProjectFailed": "Graph built, but failed to load the project. Refresh the page and open it from My Projects.",
         "buildingGraph": "Building citation graph...",
-        "rateLimitedTrying": "Rate limited, trying alternative data sources..."
+        "rateLimitedTrying": "Rate limited, trying alternative data sources...",
+        "startWriting": "Start Writing",
+        "startWritingComplete": "Context ready, citation network:",
+        "preparingContext": "Preparing hidden context",
+        "buildGraph": "Build Graph"
     },
     "graphFilters": {
         "title": "Filters",
+        "layout": "Layout",
         "yearRange": "Year Range",
         "noYearData": "No year data available.",
         "citationIntent": "Citation Intent",
@@ -181,15 +205,6 @@
         "removeFailed": "Remove failed",
         "refExists": "Reference already exists",
         "graphPapers": "Graph Papers",
-        "literatureReview": "Literature Review",
-        "academicStyle": "Academic",
-        "conciseStyle": "Concise",
-        "detailedStyle": "Detailed",
-        "generateReview": "Generate Review",
-        "pleaseAddRefs": "Please add references first",
-        "reviewGenerated": "Literature review generated successfully",
-        "generateFailed": "Generation failed, please check AI configuration",
-        "addRefsThenGenerate": "Add references then click generate",
         "aiWriting": "AI Writing",
         "startChatWithAi": "Start chatting with AI assistant",
         "chatExample": "You can say: \"Help me find papers about XXX\"",
@@ -205,7 +220,8 @@
         "sorryError": "Sorry, an error occurred: ",
         "checkConsole": "Please check the console for more details.",
         "unknownError": "Unknown error",
-        "addedToRefs": "Added to references"
+        "addedToRefs": "Added to references",
+        "autoAddedRefs": "Auto-added {count} reference(s)"
     },
     "clusterPanel": {
         "title": "Literature Genre Identification",
@@ -236,6 +252,29 @@
         "addRef": "Add Reference",
         "added": "Added:",
         "cited": "Cited"
+    },
+    "smartSearch": {
+        "title": "Smart Search",
+        "subtitle": "Describe the paper you want in natural language. The agent will search across sources and recommend candidates.",
+        "placeholder": "Describe the paper you want, e.g. GNN survey 2022-2024 high-citation",
+        "examples": [
+            "Graph neural network survey",
+            "Transformer for medical imaging",
+            "Federated learning high-citation last 3 years",
+            "SIGGRAPH 2023 best paper"
+        ],
+        "thinking": "Agent is thinking…",
+        "noResult": "No papers suggested yet — try rephrasing",
+        "selectToBuild": "Use to build graph",
+        "toolActivity": "Tool activity",
+        "filterNote": "Filter parameters only apply to a subset of data sources",
+        "reset": "Reset",
+        "send": "Send",
+        "stop": "Stop",
+        "modeSmart": "Smart",
+        "modeClassic": "Classic",
+        "errorGeneric": "Smart search failed, please try again later",
+        "empty": "Enter a description and press Enter to send"
     },
     "graphCanvas": {
         "emptyTitle": "Citation Graph Visualization",
@@ -293,5 +332,168 @@
         "aiReplyFailed": "AI reply failed: ",
         "sorryError": "Sorry, an error occurred: ",
         "unknownError": "Unknown error"
+    },
+    "draftGenerator": {
+        "title": "Long-Form Draft",
+        "tabLabel": "Long-Form Draft",
+        "intro": "Generate a complete paper draft from a research topic. The pipeline runs in 4 user-driven steps: research → structure → compose → compile.",
+        "form": {
+            "topic": "Research Topic",
+            "topicPlaceholder": "e.g. The impact of large language models on academic literature review workflows",
+            "wordCount": "Target Word Count",
+            "citationStyle": "Citation Style",
+            "projectId": "Project ID"
+        },
+        "citationStyles": {
+            "APA": "APA (7th)",
+            "IEEE": "IEEE",
+            "CHICAGO": "Chicago",
+            "MLA": "MLA"
+        },
+        "phases": {
+            "research": "Research",
+            "structure": "Structure",
+            "compose": "Compose",
+            "validate": "Validate",
+            "compile": "Compile",
+            "export": "Export"
+        },
+        "buttons": {
+            "research": "1. Research",
+            "structure": "2. Structure",
+            "compose": "3. Compose",
+            "compile": "4. Compile",
+            "cancel": "Cancel run",
+            "cancelAriaLabel": "Cancel the currently running phase"
+        },
+        "progress": {
+            "label": "Pipeline Progress",
+            "idle": "Idle",
+            "running": "Running…",
+            "completed": "Completed",
+            "failed": "Failed",
+            "skipped": "Skipped"
+        },
+        "output": {
+            "candidatePapers": "Candidate Papers",
+            "paperSummaries": "Paper Summaries",
+            "researchGaps": "Research Gaps",
+            "outline": "Outline",
+            "sections": "Section Drafts",
+            "finalDraft": "Final Draft",
+            "qualityHistory": "Quality History",
+            "empty": "No output yet — run the corresponding phase to populate this panel."
+        },
+        "status": {
+            "noProject": "No project selected.",
+            "noTopic": "Please enter a research topic before running the research phase.",
+            "researchDone": "Research phase complete. Found {papers} candidate paper(s).",
+            "structureDone": "Outline generated. Review the structure before composing.",
+            "composeDone": "Section drafts generated. Ready to compile the final paper.",
+            "compileDone": "Final draft compiled. Open the output panel to read it.",
+            "fetchStatusFailed": "Failed to fetch pipeline status",
+            "cancelRequested": "Cancellation requested — the runner will stop at the next phase boundary.",
+            "cancelled": "The running phase was cancelled."
+        },
+        "error": {
+            "authRequired": "Authentication required. Please configure a bearer token in AI Settings or the server environment.",
+            "noLLMKey": "No LLM API key is configured on the server. Set SILICONFLOW_API_KEY (or your provider's equivalent) before running the pipeline.",
+            "authRequiredFriendly": "Your session has expired. Please sign in again.",
+            "noLLMKeyFriendly": "The AI assistant is not configured yet. Please contact your administrator.",
+            "llmServerError": "The AI service is temporarily unavailable. Please try again in a moment.",
+            "networkError": "Network connection failed. Please check your connection and retry.",
+            "garbageOutput": "The AI returned unexpected content. A fallback was used; the output may be sub-optimal.",
+            "sessionExpired": "Your session has expired. Please sign in again.",
+            "generic": "Pipeline error"
+        },
+        "regen": {
+            "modalTitle": "Rewrite section: {section}",
+            "instructionsLabel": "Additional instructions (optional)",
+            "instructionsPlaceholder": "e.g.: use more technical vocabulary, keep it under 600 words, add a comparison table...",
+            "submit": "Regenerate",
+            "running": "Rewriting...",
+            "success": "Section regenerated",
+            "errorTitle": "Regenerate failed",
+            "viewDiff": "Show diff",
+            "hideDiff": "Hide diff",
+            "diffUnavailable": "Side-by-side diff is not available."
+        }
+    },
+    "agent": {
+        "panelTitle": "Research Agent",
+        "stop": "Stop",
+        "reset": "Reset",
+        "send": "Send",
+        "thinking": "Agent is working…",
+        "noResponse": "No response yet",
+        "suggestedPapers": "Suggested papers",
+        "toolActivity": "Tool activity",
+        "placeholder": "Ask the agent — e.g. recommend 5 graph neural network surveys",
+        "askAgent": "Ask Research Agent",
+        "writingContextHint": "Writing context active — ask for clarifications, alternatives, or expansions"
+    },
+    "projectView": {
+        "untitled": "Untitled project",
+        "projectId": "Project ID",
+        "paperCount": "Papers",
+        "citationCount": "Citations",
+        "openWriting": "Open Writing Assistant",
+        "writingNotWired": "Writing assistant is not wired up — please contact the developer",
+        "cited": "cited",
+        "referencesLabel": "references",
+        "citedByLabel": "cited by",
+        "more": "more",
+        "emptyTitle": "Project has no papers yet",
+        "emptyHint": "Pick a paper in SmartSearch and click \"Build Citation Network\" to get started"
+    },
+    "chat": {
+        "newChat": "New chat",
+        "createFailed": "Failed to create conversation",
+        "loadFailed": "Failed to load conversation",
+        "deleteFailed": "Failed to delete",
+        "renameFailed": "Failed to rename",
+        "emptyList": "No conversations yet",
+        "emptyTitle": "Start a new conversation",
+        "emptyHint": "Type a sentence in natural language. The agent will search, cite, and draft long-form on demand.",
+        "suggestions": [
+            "Recommend 5 graph neural network surveys",
+            "Help me write a survey on Transformers in medical imaging",
+            "Find high-citation federated learning papers from the last 3 years"
+        ],
+        "inputPlaceholder": "Ask the research assistant, e.g. recommend 5 GNN surveys",
+        "inputAriaLabel": "Message input",
+        "send": "Send",
+        "stop": "Stop",
+        "toolActivity": "Tool activity",
+        "tool": "tool",
+        "toolError": "tool error",
+        "suggestedPapers": "Suggested papers",
+        "thinking": "Agent is thinking…",
+        "retry": "Retry",
+        "iterTag": "iter {n}",
+        "papers": "papers",
+        "sections": "sections",
+        "copied": "Copied",
+        "copyFailed": "Copy failed",
+        "copy": "Copy",
+        "deleteConfirm": "Delete this conversation?",
+        "sectionsGenerated": "{n} sections generated",
+        "exportCurrent": "Export current conversation",
+        "phase": {
+            "pending": "pending",
+            "running": "{phase} phase is running…",
+            "succeeded": "done",
+            "failed": "failed",
+            "skipped": "skipped",
+            "checkpoint": "resumable",
+            "resumed": "resumed",
+            "checkpointHint": "A checkpoint exists for this phase — retry will resume from it",
+            "run": "Run",
+            "retry": "Retry",
+            "rerun": "Re-run",
+            "runFailed": "Phase run failed",
+            "partialFailure": "Some phases failed. Click Retry on each card to resume.",
+            "canResume": "{completed} of {total} phases complete. Continue to resume."
+        }
     }
 }

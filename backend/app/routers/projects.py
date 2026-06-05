@@ -1,19 +1,40 @@
 """
 Projects API Router - Manage citation graph projects
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Response
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Response, Depends
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
 import json
 
+from ..auth import UserAuthDep
 from ..models import (
     ProjectCreateRequest, ProjectMetadata, ProjectResponse,
-    AnnotationUpdate, GraphData, CrawlProgress
+    AnnotationUpdate, GraphData, CrawlProgress, NetworkMetrics,
+    ResearchGapResponse, ResearchGapItem, ConversationListResponse,
 )
 from ..services import project_storage, graph_builder
+from ..services.network_analysis import network_analyzer
+from ..services.gap_detection import gap_detector
+from ..users import ANONYMOUS_ADMIN, UserContext
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+def _user_filter(user: UserContext) -> Optional[str]:
+    """Return the ``user_id`` to pass to ``project_storage`` for
+    access-filtered queries.
+
+    In single-secret / dev mode the resolved identity is
+    :data:`ANONYMOUS_ADMIN`; we want that case to see *all* projects
+    (so existing tests + the frontend's pre-auth flows keep working).
+    In users-file mode the resolved user is a real ``user_id`` and we
+    filter by it so cross-user isolation holds.
+    """
+    if user.user_id == ANONYMOUS_ADMIN.user_id:
+        return None
+    return user.user_id
 
 # In-memory task status tracking
 _task_status: dict[str, CrawlProgress] = {}
@@ -65,11 +86,12 @@ async def build_graph_task(project_id: str, seed_paper_id: str, depth: int, dire
 @router.post("", response_model=ProjectMetadata)
 async def create_project(
     request: ProjectCreateRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    user: UserContext = UserAuthDep,
 ):
     """
     Create a new project and start building citation graph.
-    
+
     - **seed_paper_id**: Starting paper ID (DOI, arXiv ID, or S2 ID)
     - **depth**: How many levels to crawl (1-3, default 1)
     - **direction**: "forward" (references), "backward" (citations), or "both"
@@ -77,17 +99,19 @@ async def create_project(
     """
     import logging
     logger = logging.getLogger(__name__)
-    
+
     logger.info(f"Create project request: seed={request.seed_paper_id}, depth={request.depth}, max={request.max_papers}")
-    
-    # Create project
+
+    # Create project, stamping it with the requester so cross-user
+    # isolation works.
     metadata = project_storage.create_project(
         seed_paper_id=request.seed_paper_id,
         name=request.name,
         depth=request.depth,
-        direction=request.direction
+        direction=request.direction,
+        user_id=user.user_id,
     )
-    
+
     # Start background build task
     background_tasks.add_task(
         build_graph_task,
@@ -97,31 +121,64 @@ async def create_project(
         request.direction,
         request.max_papers
     )
-    
+
     return metadata
 
 
+@router.get("/conversations", response_model=ConversationListResponse)
+async def list_conversations(user: UserContext = UserAuthDep):
+    """
+    Lightweight conversation sider payload: id, name, updated_at,
+    paper / section counts, and the latest message preview.
+    Avoids shipping the full chat history on every list call.
+    """
+    items = project_storage.list_conversations(user_id=_user_filter(user))
+    return ConversationListResponse(items=items)
+
+
+@router.get("/{project_id}/full", response_model=ProjectResponse)
+async def get_project_full(
+    project_id: str,
+    user: UserContext = UserAuthDep,
+):
+    """
+    Full project payload including the entire chat_history. The
+    ChatView calls this on mount of a conversation to rehydrate the
+    message thread verbatim.
+    """
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
 @router.get("/{project_id}", response_model=ProjectResponse)
-async def get_project(project_id: str):
+async def get_project(
+    project_id: str,
+    user: UserContext = UserAuthDep,
+):
     """Get project details with full graph data"""
-    project = project_storage.get_project(project_id)
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
 
 @router.get("/{project_id}/status")
-async def get_project_status(project_id: str):
+async def get_project_status(
+    project_id: str,
+    user: UserContext = UserAuthDep,
+):
     """Get build status for a project"""
     # Check in-memory status first
     if project_id in _task_status:
         return _task_status[project_id]
-    
+
     # Fall back to stored status
-    project = project_storage.get_project(project_id)
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     return CrawlProgress(
         status=project.metadata.status,
         progress=100 if project.metadata.status == "completed" else 0,
@@ -131,10 +188,17 @@ async def get_project_status(project_id: str):
 
 
 @router.get("/{project_id}/stream")
-async def stream_project_status(project_id: str):
+async def stream_project_status(
+    project_id: str,
+    user: UserContext = UserAuthDep,
+):
     """
     Stream build progress via Server-Sent Events (SSE)
     """
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
     async def event_generator():
         last_status = None
         while True:
@@ -164,9 +228,13 @@ async def update_edge_annotation(
     project_id: str,
     source: str,
     target: str,
-    annotation: AnnotationUpdate
+    annotation: AnnotationUpdate,
+    user: UserContext = UserAuthDep,
 ):
     """Update citation intent annotation for an edge"""
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     success = project_storage.update_edge(
         project_id=project_id,
         source=source,
@@ -174,28 +242,33 @@ async def update_edge_annotation(
         intent=annotation.intent.value,
         note=annotation.note
     )
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="Edge not found")
-    
+
     return {"status": "updated"}
 
 
 @router.get("/{project_id}/export")
 async def export_project(
     project_id: str,
-    format: str = "bibtex"
+    format: str = "bibtex",
+    user: UserContext = UserAuthDep,
 ):
     """
     Export project papers.
-    
+
     - **format**: Export format ("bibtex", "ris", or "json")
     """
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
     if format == "bibtex":
         content = project_storage.export_bibtex(project_id)
         if not content:
             raise HTTPException(status_code=404, detail="Project not found")
-        
+
         return Response(
             content=content,
             media_type="application/x-bibtex",
@@ -212,82 +285,98 @@ async def export_project(
             headers={"Content-Disposition": f"attachment; filename={project_id}.ris"}
         )
     elif format == "json":
-        project = project_storage.get_project(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        
         return Response(
             content=json.dumps(project.graph.model_dump(), indent=2, ensure_ascii=False),
             media_type="application/json",
             headers={"Content-Disposition": f"attachment; filename={project_id}.json"}
         )
-    
+
     else:
         raise HTTPException(status_code=400, detail=f"Unknown format: {format}")
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str):
+async def delete_project(
+    project_id: str,
+    user: UserContext = UserAuthDep,
+):
     """Delete a project"""
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     success = project_storage.delete_project(project_id)
+
     if not success:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Clean up task status
     if project_id in _task_status:
         del _task_status[project_id]
-    
+
     return {"status": "deleted"}
 
 
 @router.delete("/{project_id}/papers/{paper_id}")
-async def delete_paper(project_id: str, paper_id: str):
+async def delete_paper(
+    project_id: str,
+    paper_id: str,
+    user: UserContext = UserAuthDep,
+):
     """Delete a paper node from the project"""
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     success = project_storage.delete_paper(project_id, paper_id)
     if not success:
         raise HTTPException(status_code=404, detail="Paper not found or project not found")
-    
+
     return {"status": "deleted", "paper_id": paper_id}
 
 
 @router.get("", response_model=List[ProjectMetadata])
-async def list_projects():
+async def list_projects(user: UserContext = UserAuthDep):
     """
-    List all saved projects.
+    List all saved projects visible to the calling user.
     Returns projects sorted by creation time (newest first).
     """
-    return project_storage.list_projects()
+    return project_storage.list_projects(user_id=_user_filter(user))
 
-
-from pydantic import BaseModel
 
 class RenameRequest(BaseModel):
     name: str
 
 
 @router.patch("/{project_id}/rename")
-async def rename_project(project_id: str, request: RenameRequest):
+async def rename_project(
+    project_id: str,
+    request: RenameRequest,
+    user: UserContext = UserAuthDep,
+):
     """Rename a project"""
-    metadata = project_storage._load_metadata(project_id)
-    if not metadata:
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    metadata.name = request.name
-    project_storage._save_metadata(project_id, metadata)
-    
+
+    project.metadata.name = request.name
+    project_storage._save_metadata(project_id, project.metadata)
+
     return {"status": "renamed", "name": request.name}
 
 
 @router.post("/{project_id}/analyze")
-async def analyze_project_intents(project_id: str, background_tasks: BackgroundTasks):
+async def analyze_project_intents(
+    project_id: str,
+    background_tasks: BackgroundTasks,
+    user: UserContext = UserAuthDep,
+):
     """
     Trigger AI citation intent analysis for an existing project.
     Running in background.
     """
-    project = project_storage.get_project(project_id)
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check if analysis is already running
     if project_id in _task_status and _task_status[project_id].status == "analyzing":
         return {"status": "analyzing", "message": "Analysis already in progress"}
@@ -337,5 +426,59 @@ async def analyze_project_intents(project_id: str, background_tasks: BackgroundT
             )
 
     background_tasks.add_task(run_analysis_task)
-    
+
     return {"status": "started", "message": "AI analysis started in background"}
+
+
+@router.get("/{project_id}/metrics", response_model=NetworkMetrics)
+async def get_network_metrics(
+    project_id: str,
+    user: UserContext = UserAuthDep,
+):
+    """
+    Compute network analysis metrics for a project's citation graph.
+
+    Returns:
+    - **pagerank**: PageRank score for each paper (importance)
+    - **betweenness**: Betweenness centrality (bridging importance)
+    - **communities**: Community assignment for each paper
+    - **community_count**: Total number of communities detected
+    """
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    results = network_analyzer.analyze(project.graph)
+
+    return NetworkMetrics(
+        pagerank=results["pagerank"],
+        betweenness=results["betweenness"],
+        communities=results["communities"],
+        community_count=len(set(results["communities"].values())) if results["communities"] else 0,
+    )
+
+
+@router.get("/{project_id}/gaps", response_model=ResearchGapResponse)
+async def detect_research_gaps(
+    project_id: str,
+    user: UserContext = UserAuthDep,
+):
+    """
+    Detect research gaps in a project's citation graph.
+
+    Identifies:
+    - **unrefuted_claim**: Papers with supporting citations but no opposing views
+    - **sparse_region**: Well-cited papers with few graph connections
+    - **broken_chain**: References to papers not in the graph
+    - **stale_frontier**: High-impact papers uncited for 5+ years
+    """
+    project = project_storage.get_project(project_id, user_id=_user_filter(user))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    gaps = gap_detector.detect(project.graph)
+
+    return ResearchGapResponse(
+        gaps=[ResearchGapItem(**g) for g in gaps],
+        total=len(gaps),
+    )

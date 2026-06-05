@@ -1,0 +1,41 @@
+/* ChatInput — sticky bottom bar */
+
+.chat-input {
+    flex-shrink: 0;
+    padding: 12px 20px 16px;
+    border-top: 1px solid rgba(15, 23, 42, 0.04);
+    background: #ffffff;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    max-width: 820px;
+    width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.chat-input textarea {
+    flex: 1 1 auto;
+    resize: none;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 15px;
+    line-height: 1.5;
+    font-family: inherit;
+    outline: none;
+    background: #fafaf9;
+    transition: border-color 150ms ease-out, background 150ms ease-out;
+    min-height: 42px;
+    max-height: 160px;
+}
+
+.chat-input textarea:focus {
+    border-color: #D4AF37;
+    background: #ffffff;
+}
+
+.chat-input textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

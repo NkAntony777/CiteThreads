@@ -10,6 +10,8 @@ venv/
 *.egg-info/
 dist/
 build/
+.ruff_cache/
+.pytest_cache/
 
 # IDE
 .idea/
@@ -24,6 +26,8 @@ build/
 
 # Data
 backend/data/projects/*/
+data/usage/
+data/users.json
 
 # Logs
 *.log
@@ -33,6 +37,7 @@ logs/
 node_modules/
 frontend/dist/
 .npm
+frontend/tsconfig.tsbuildinfo
 
 # OS
 .DS_Store
@@ -40,3 +45,9 @@ Thumbs.db
 
 # Agent
 .agent/
+
+# Harness / shell artifacts
+harness/nul
+nul
+returned
+.playwright-mcp/

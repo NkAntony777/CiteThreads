@@ -12,7 +12,7 @@ import {
     BulbOutlined
 } from '@ant-design/icons';
 import { useGraphStore } from '../../stores/graphStore';
-import { CitationIntent } from '../../types';
+import { CitationFunction, CitationIntent, CitationSentiment } from '../../types';
 import { aiConfigService } from '../../services/aiConfig';
 import './EdgePanel.css';
 
@@ -30,6 +30,22 @@ const FUNCTION_COLORS: Record<string, string> = {
 export const EdgePanel: React.FC = () => {
     const { t } = useTranslation();
     const { selectedEdge, setSelectedEdge, nodes } = useGraphStore();
+
+    const CITATION_FUNCTION_LABELS: Record<CitationFunction, string> = {
+        BACKGROUND: t('edgePanel.citationFunctionBackground'),
+        METHODOLOGY: t('edgePanel.citationFunctionMethodology'),
+        COMPARISON: t('edgePanel.citationFunctionComparison'),
+        CRITIQUE: t('edgePanel.citationFunctionCritique'),
+        BASIS: t('edgePanel.citationFunctionBasis'),
+        UNKNOWN: t('edgePanel.citationFunctionUnknown'),
+    };
+
+    const CITATION_SENTIMENT_LABELS: Record<CitationSentiment, string> = {
+        POSITIVE: t('edgePanel.sentimentPositive'),
+        NEUTRAL: t('edgePanel.sentimentNeutral'),
+        NEGATIVE: t('edgePanel.sentimentNegative'),
+        UNKNOWN: t('edgePanel.sentimentUnknown'),
+    };
 
     const INTENT_CONFIG: Record<CitationIntent, { color: string; label: string; description: string }> = {
         SUPPORT: { color: 'success', label: t('edgePanel.support'), description: t('edgePanel.supportDesc') },
@@ -100,12 +116,12 @@ export const EdgePanel: React.FC = () => {
                             <Space wrap>
                                 {selectedEdge.citation_function && selectedEdge.citation_function !== 'UNKNOWN' && (
                                     <Tag color={FUNCTION_COLORS[selectedEdge.citation_function] || 'default'}>
-                                        {selectedEdge.citation_function}
+                                        {CITATION_FUNCTION_LABELS[selectedEdge.citation_function]}
                                     </Tag>
                                 )}
                                 {selectedEdge.citation_sentiment && selectedEdge.citation_sentiment !== 'UNKNOWN' && (
                                     <Tag color={selectedEdge.citation_sentiment === 'POSITIVE' ? 'success' : selectedEdge.citation_sentiment === 'NEGATIVE' ? 'error' : 'default'}>
-                                        SENTIMENT: {selectedEdge.citation_sentiment}
+                                        {t('edgePanel.sentimentPrefix')} {CITATION_SENTIMENT_LABELS[selectedEdge.citation_sentiment]}
                                     </Tag>
                                 )}
                             </Space>
@@ -140,7 +156,7 @@ export const EdgePanel: React.FC = () => {
                     <Card size="small" title={t('edgePanel.sourceCard')} className="paper-card source-card">
                         <Text strong>{sourcePaper?.title || selectedEdge.source}</Text>
                         <div style={{ marginTop: 4 }}>
-                            <Tag>{sourcePaper?.year || 'Unknown'}</Tag>
+                            <Tag>{sourcePaper?.year || t('common.unknown')}</Tag>
                             <Text type="secondary" style={{ fontSize: 12 }}>{sourcePaper?.authors[0]}</Text>
                         </div>
                     </Card>
@@ -152,7 +168,7 @@ export const EdgePanel: React.FC = () => {
                     <Card size="small" title={t('edgePanel.targetCard')} className="paper-card target-card">
                         <Text strong>{targetPaper?.title || selectedEdge.target}</Text>
                         <div style={{ marginTop: 4 }}>
-                            <Tag>{targetPaper?.year || 'Unknown'}</Tag>
+                            <Tag>{targetPaper?.year || t('common.unknown')}</Tag>
                             <Text type="secondary" style={{ fontSize: 12 }}>{targetPaper?.authors[0]}</Text>
                         </div>
                     </Card>

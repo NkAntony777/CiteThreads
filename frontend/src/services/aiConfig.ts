@@ -1,15 +1,30 @@
 /**
  * AI Service Configuration - Types and Storage
- * Updated: January 2025 - Latest models from all major providers
+ *
+ * Security model (June 2026 review):
+ * - The raw LLM API key NEVER lives in the browser. The previous
+ *   ``simpleEncrypt``/``simpleDecrypt`` Base64+concat was trivial to
+ *   decode, so the threat was "any user with DevTools can read your
+ *   key" rather than "your key is encrypted".
+ * - The backend reads its key from ``settings.siliconflow_api_key``
+ *   (env var). The frontend only chooses the model name and the base
+ *   URL.
+ * - ``APIProviderConfig`` no longer carries an ``apiKey`` field. Old
+ *   localStorage entries that *do* contain a key are stripped on load.
+ *
+ * Updated: June 2026 - server-side key only.
  */
+
+import i18n from '../i18n';
 
 // Supported AI providers
 export type AIProvider = 'openai' | 'deepseek' | 'siliconflow' | 'google' | 'anthropic' | 'custom';
 
-// Provider configuration
+// Provider configuration. Note: apiKey was removed in the security
+// review. The server uses SILICONFLOW_API_KEY (or equivalent) from
+// its own environment.
 export interface AIProviderConfig {
     provider: AIProvider;
-    apiKey: string;
     model: string;
     baseUrl?: string;  // For custom providers
     isConfigured: boolean;
@@ -155,32 +170,37 @@ export function getModelDisplayName(providerId: AIProvider, modelId: string): st
     return model ? model.name : modelId;
 }
 
-// Simple encryption for localStorage (not production-level security)
+// Storage key. Kept the same name so existing localStorage entries get
+// migrated (the apiKey field is just dropped on load).
 const STORAGE_KEY = 'citethreads_ai_config';
-const ENCRYPTION_KEY = 'CT_AI_2025';
 
-function simpleEncrypt(text: string): string {
-    return btoa(unescape(encodeURIComponent(text + ENCRYPTION_KEY)));
-}
-
-function simpleDecrypt(encoded: string): string {
-    try {
-        const decoded = decodeURIComponent(escape(atob(encoded)));
-        return decoded.replace(ENCRYPTION_KEY, '');
-    } catch {
-        return '';
-    }
-}
-
-// Storage service
+// Storage service. The "encryption" was removed in the security
+// review. The browser never sees the raw API key, so there's nothing
+// to protect in localStorage. The model + base URL are not sensitive.
 export const aiConfigService = {
     getConfig(): AIProviderConfig | null {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (!stored) return null;
-
-            const decrypted = simpleDecrypt(stored);
-            return JSON.parse(decrypted);
+            const parsed = JSON.parse(stored) as Record<string, unknown>;
+            // Strip any pre-review apiKey field. Older localStorage
+            // entries may still carry one; we drop it on read so
+            // nothing sensitive lingers in the browser.
+            const { apiKey: _apiKey, ...rest } = parsed;
+            void _apiKey;
+            const provider = rest.provider;
+            const model = rest.model;
+            if (typeof provider !== 'string' || typeof model !== 'string') {
+                return null;
+            }
+            return {
+                provider: provider as AIProviderConfig['provider'],
+                model,
+                baseUrl: typeof rest.baseUrl === 'string' ? rest.baseUrl : undefined,
+                isConfigured: rest.isConfigured !== false,
+                lastTested: typeof rest.lastTested === 'string' ? rest.lastTested : undefined,
+                testStatus: rest.testStatus as AIProviderConfig['testStatus'],
+            };
         } catch (e) {
             console.error('Failed to load AI config:', e);
             return null;
@@ -189,9 +209,15 @@ export const aiConfigService = {
 
     saveConfig(config: AIProviderConfig): void {
         try {
-            const encrypted = simpleEncrypt(JSON.stringify(config));
-            localStorage.setItem(STORAGE_KEY, encrypted);
-            this.applyConfig(config); // Sync with backend
+            // Persist only non-sensitive fields. The apiKey field is
+            // not in the type, but be defensive in case a caller
+            // tried to smuggle one in.
+            const { apiKey: _apiKey, ...safe } = config as AIProviderConfig & {
+                apiKey?: string;
+            };
+            void _apiKey;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
+            void this.applyConfig(safe as AIProviderConfig);
         } catch (e) {
             console.error('Failed to save AI config:', e);
         }
@@ -203,50 +229,81 @@ export const aiConfigService = {
 
     async applyConfig(config: AIProviderConfig): Promise<boolean> {
         try {
-            await fetch('/api/ai/configure/llm', {
+            const resp = await fetch('/api/ai/configure/llm', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     provider: config.provider,
-                    api_key: config.apiKey,
                     model: config.model,
                     base_url: config.baseUrl || AI_PROVIDERS[config.provider]?.baseUrl,
                 }),
             });
-            return true;
+            return resp.ok;
         } catch (e) {
             console.error('Failed to apply AI config:', e);
             return false;
         }
     },
 
+    /**
+     * Test the connection through the server-side default key. The
+     * legacy "send the user's key" path is removed; the server is
+     * the only one that can test against its configured key.
+     */
     async testConnection(config: AIProviderConfig): Promise<{ success: boolean; message: string }> {
         try {
-            const response = await fetch('/api/ai/test', {
+            const response = await fetch('/api/ai/test-config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     provider: config.provider,
-                    api_key: config.apiKey,
                     model: config.model,
                     base_url: config.baseUrl || AI_PROVIDERS[config.provider]?.baseUrl,
                 }),
             });
-
             const data = await response.json();
-
             if (response.ok && data.success) {
-                return { success: true, message: data.message || '连接成功！' };
-            } else {
-                return { success: false, message: data.detail || data.message || '连接失败' };
+                return { success: true, message: data.message || i18n.t('settings.connectionSuccess') };
             }
-        } catch (e: any) {
-            return { success: false, message: e.message || '网络错误' };
+            return { success: false, message: data.detail || data.message || i18n.t('settings.connectionFailed') };
+        } catch (e) {
+            const err = e as { message?: string };
+            return { success: false, message: err.message || i18n.t('settings.networkError') };
+        }
+    },
+
+    /** Read the current server-side AI status (whether a default key
+     * is configured, current LLM/embedding status). Used to show the
+     * "no key on server" warning in the UI. */
+    async getServerStatus(): Promise<{
+        defaultKeyConfigured: boolean;
+        defaultModel: string;
+        defaultBaseUrl: string;
+    }> {
+        try {
+            const response = await fetch('/api/ai/status');
+            if (!response.ok) {
+                return { defaultKeyConfigured: false, defaultModel: '', defaultBaseUrl: '' };
+            }
+            const data = await response.json() as {
+                default_key_configured?: boolean;
+                default_model?: string;
+                default_base_url?: string;
+            };
+            return {
+                defaultKeyConfigured: Boolean(data.default_key_configured),
+                defaultModel: data.default_model ?? '',
+                defaultBaseUrl: data.default_base_url ?? '',
+            };
+        } catch (e) {
+            console.error('Failed to load AI server status:', e);
+            return { defaultKeyConfigured: false, defaultModel: '', defaultBaseUrl: '' };
         }
     },
 };
 
-// Initialize AI services from local storage
+// Initialize AI services from local storage. The apiKey field is no
+// longer sent, so this just registers the model choice.
 export const initializeAI = async () => {
     const chatConfig = aiConfigService.getConfig();
     if (chatConfig) {

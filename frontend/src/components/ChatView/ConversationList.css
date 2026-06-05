@@ -1,0 +1,89 @@
+/* ConversationList — left sider of ChatView */
+
+.conversation-list {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.conversation-list__header {
+    padding: 12px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+.conversation-list__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.conversation-list__loading,
+.conversation-list__empty {
+    padding: 24px 12px;
+    text-align: center;
+}
+
+.conversation-list__item {
+    padding: 10px 12px !important;
+    border: none !important;
+    border-left: 3px solid transparent !important;
+    transition: background 150ms ease-out, border-color 150ms ease-out;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.conversation-list__item:hover {
+    background: rgba(15, 23, 42, 0.03);
+}
+
+.conversation-list__item.is-active {
+    background: rgba(212, 175, 55, 0.08);
+    border-left-color: #D4AF37 !important;
+}
+
+.conversation-list__item-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.conversation-list__item-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #171717;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.conversation-list__item-title span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.conversation-list__item-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: #737373;
+    margin-top: 2px;
+}
+
+.conversation-list__item-actions {
+    display: none;
+    flex-shrink: 0;
+}
+
+.conversation-list__item:hover .conversation-list__item-actions,
+.conversation-list__item.is-active .conversation-list__item-actions {
+    display: flex;
+    gap: 2px;
+}

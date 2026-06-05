@@ -1,0 +1,21 @@
+.history-panel__loading,
+.history-panel__empty {
+    padding: 24px 12px;
+    text-align: center;
+}
+
+.history-panel__item {
+    padding: 10px 12px !important;
+    border-left: 3px solid transparent !important;
+    transition: background 150ms ease-out, border-color 150ms ease-out;
+    cursor: pointer;
+}
+
+.history-panel__item:hover {
+    background: rgba(15, 23, 42, 0.03);
+}
+
+.history-panel__item.is-active {
+    background: rgba(212, 175, 55, 0.08);
+    border-left-color: #D4AF37 !important;
+}

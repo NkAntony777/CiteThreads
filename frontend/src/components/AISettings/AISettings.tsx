@@ -1,6 +1,12 @@
 /**
  * AISettings Component - AI Service Provider Configuration Panel
- * Supports Chat models and Language switching
+ *
+ * Updated June 2026: the API key field is no longer shown to the user.
+ * The server holds the key (SILICONFLOW_API_KEY env var) and the
+ * frontend just chooses the model + base URL. The "Test" button hits
+ * ``/api/ai/test-config`` which runs the test against the server-side
+ * key. A warning alert is rendered when the server has no default
+ * key configured, so the user knows AI features will fail.
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,8 +14,9 @@ import {
     Drawer, Form, Select, Input, Button, Space, Alert, Tag, Typography, message, Tabs, Divider
 } from 'antd';
 import {
-    SettingOutlined, CheckCircleOutlined, ApiOutlined,
-    SaveOutlined, DeleteOutlined, ExperimentOutlined, GlobalOutlined
+    SettingOutlined, CheckCircleOutlined, ApiOutlined, SafetyOutlined,
+    SaveOutlined, DeleteOutlined, ExperimentOutlined, GlobalOutlined,
+    WarningOutlined
 } from '@ant-design/icons';
 import {
     AI_PROVIDERS, AIProvider, AIProviderConfig, aiConfigService, ProviderInfo
@@ -35,12 +42,12 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
     const [chatForm] = Form.useForm();
     const [chatProvider, setChatProvider] = useState<AIProvider>('siliconflow');
     const [customChatModel, setCustomChatModel] = useState('');
-    const [showChatKey, setShowChatKey] = useState(false);
     const [chatTesting, setChatTesting] = useState(false);
     const [chatTestResult, setChatTestResult] = useState<{ success: boolean; message: string } | null>(null);
     const [savedChatConfig, setSavedChatConfig] = useState<AIProviderConfig | null>(null);
+    const [defaultKeyConfigured, setDefaultKeyConfigured] = useState<boolean | null>(null);
 
-    // Load saved configs on mount
+    // Load saved configs + server status on mount
     useEffect(() => {
         // Chat config
         const chatConfig = aiConfigService.getConfig();
@@ -50,13 +57,16 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
             chatForm.setFieldsValue({
                 provider: chatConfig.provider,
                 model: chatConfig.model,
-                apiKey: chatConfig.apiKey,
                 baseUrl: chatConfig.baseUrl,
             });
             if (!AI_PROVIDERS[chatConfig.provider].models.find(m => m.id === chatConfig.model)) {
                 setCustomChatModel(chatConfig.model);
             }
         }
+
+        void aiConfigService.getServerStatus().then((s) => {
+            setDefaultKeyConfigured(s.defaultKeyConfigured);
+        });
     }, [chatForm, visible]);
 
     const chatProviderInfo: ProviderInfo = AI_PROVIDERS[chatProvider];
@@ -80,7 +90,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
 
     const handleChatTest = async () => {
         try {
-            await chatForm.validateFields(['apiKey', 'model']);
+            await chatForm.validateFields(['model']);
         } catch {
             message.error(t('settings.pleaseEnterCompleteConfig'));
             return;
@@ -89,7 +99,6 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
         const values = chatForm.getFieldsValue();
         const config: AIProviderConfig = {
             provider: chatProvider,
-            apiKey: values.apiKey,
             model: customChatModel || values.model,
             baseUrl: values.baseUrl,
             isConfigured: true,
@@ -104,8 +113,9 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
             if (result.success) {
                 message.success(t('settings.chatTestSuccess'));
             }
-        } catch (e: any) {
-            setChatTestResult({ success: false, message: e.message });
+        } catch (e) {
+            const err = e as { message?: string };
+            setChatTestResult({ success: false, message: err.message ?? '' });
         } finally {
             setChatTesting(false);
         }
@@ -122,7 +132,6 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
         const values = chatForm.getFieldsValue();
         const config: AIProviderConfig = {
             provider: chatProvider,
-            apiKey: values.apiKey,
             model: customChatModel || values.model,
             baseUrl: values.baseUrl,
             isConfigured: true,
@@ -169,6 +178,25 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                         />
                     )}
 
+                    {defaultKeyConfigured === false && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            icon={<WarningOutlined />}
+                            message={t('settings.defaultKeyMissing')}
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
+                    {defaultKeyConfigured === true && (
+                        <Alert
+                            type="success"
+                            showIcon
+                            icon={<SafetyOutlined />}
+                            message={t('settings.defaultKeyConfigured')}
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
+
                     <Form form={chatForm} layout="vertical" size="small">
                         <Form.Item name="provider" label={t('settings.provider')} initialValue={chatProvider}>
                             <Select value={chatProvider} onChange={handleChatProviderChange}>
@@ -209,13 +237,6 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                                 placeholder={t('settings.customModelPlaceholder')}
                                 value={customChatModel}
                                 onChange={(e) => setCustomChatModel(e.target.value)}
-                            />
-                        </Form.Item>
-
-                        <Form.Item name="apiKey" label={t('settings.apiKey')} rules={[{ required: true }]}>
-                            <Input.Password
-                                placeholder={chatProviderInfo.keyPlaceholder}
-                                visibilityToggle={{ visible: showChatKey, onVisibleChange: setShowChatKey }}
                             />
                         </Form.Item>
 
@@ -294,7 +315,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ visible, onClose }) => {
                 <Tabs items={tabItems} size="small" />
 
                 <Paragraph type="secondary" style={{ fontSize: 11, marginTop: 16 }}>
-                    {t('settings.apiKeyEncryptedNote')}
+                    {t('settings.apiKeyFromServerNote')}
                 </Paragraph>
             </div>
         </Drawer>

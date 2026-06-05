@@ -13,6 +13,7 @@ from ..models import (
 )
 from ..crawlers import semantic_scholar, arxiv, openalex, crossref
 from .ai_classifier import intent_classifier
+from .cache import paper_cache
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +169,7 @@ class GraphBuilder:
                     ))
                     if ref.id not in papers_dict:
                         papers_dict[ref.id] = ref
+                        paper_cache.put(ref)
                     if ref.id not in visited_ids and len(papers_dict) < max_papers:
                         queue.append((ref.id, current_depth + 1))
                 
@@ -192,6 +194,7 @@ class GraphBuilder:
                     ))
                     if cit.id not in papers_dict:
                         papers_dict[cit.id] = cit
+                        paper_cache.put(cit)
                     if cit.id not in visited_ids and len(papers_dict) < max_papers:
                         queue.append((cit.id, current_depth + 1))
                 
@@ -228,43 +231,98 @@ class GraphBuilder:
         )
     
     async def _fetch_paper_with_fallback(self, paper_id: str, source: str) -> Optional[Paper]:
-        """Fetch paper with fallback (S2 -> OpenAlex -> arXiv)"""
+        """Fetch paper with cache + concurrent race (S2 vs OpenAlex) + fallback"""
+        # 1. Check cache first
+        cached = paper_cache.get(paper_id)
+        if cached:
+            logger.debug(f"Cache hit for {paper_id}")
+            return cached
+
         paper = None
-        
-        # 1. Try Semantic Scholar
-        if source in ["auto", "semantic_scholar"] and self.rate_status.is_s2_available():
-            try:
-                paper = await self.s2_crawler.get_paper_by_id(paper_id)
-                if paper: return paper
-                self.rate_status.mark_s2_limited() # Assume failure is limited for now or just failed
-            except Exception:
-                pass
-        
-        # 2. Try OpenAlex
-        if source in ["auto", "openalex"] and self.rate_status.is_openalex_available():
-            try:
-                # OpenAlex handles various IDs
-                paper = await self.openalex_crawler.get_paper_by_id(paper_id)
-                if paper: return paper
-                # If failed, mark limited only if 429 (handled in crawler usually returning None)
-            except Exception:
-                pass
-        
-        # 3. Fallback to arXiv (metadata only)
+
+        # 2. Concurrent race: S2 vs OpenAlex (take first valid result)
+        if source in ["auto"] and self.rate_status.is_s2_available() and self.rate_status.is_openalex_available():
+            paper = await self._race_fetch(paper_id)
+            if paper:
+                paper_cache.put(paper)
+                return paper
+
+        # 3. Sequential fallback for explicit source or after race failure
+        if paper is None:
+            if source in ["auto", "semantic_scholar"] and self.rate_status.is_s2_available():
+                try:
+                    paper = await self.s2_crawler.get_paper_by_id(paper_id)
+                    if paper:
+                        paper_cache.put(paper)
+                        return paper
+                    self.rate_status.mark_s2_limited()
+                except Exception as e:
+                    logger.warning(f"S2 fetch failed for {paper_id}: {e}")
+
+            if source in ["auto", "openalex"] and self.rate_status.is_openalex_available():
+                try:
+                    paper = await self.openalex_crawler.get_paper_by_id(paper_id)
+                    if paper:
+                        paper_cache.put(paper)
+                        return paper
+                except Exception as e:
+                    logger.warning(f"OpenAlex fetch failed for {paper_id}: {e}")
+
+        # 4. Final fallback: Crossref + arXiv
         if source in ["auto", "arxiv"]:
-            # If ID is DOI, try Crossref first
             if paper_id.startswith("DOI:") or paper_id.startswith("10."):
-                 try:
+                try:
                     paper = await self.crossref_crawler.get_paper_by_doi(paper_id)
-                    if paper: return paper
-                 except Exception: pass
-            
-            # Then arXiv
+                    if paper:
+                        paper_cache.put(paper)
+                        return paper
+                except Exception as e:
+                    logger.warning(f"Crossref fetch failed for {paper_id}: {e}")
+
             try:
                 paper = await self.arxiv_crawler.get_paper_by_id(paper_id)
-            except Exception: pass
-        
+                if paper:
+                    paper_cache.put(paper)
+            except Exception as e:
+                logger.warning(f"arXiv fetch failed for {paper_id}: {e}")
+
         return paper
+
+    async def _race_fetch(self, paper_id: str) -> Optional[Paper]:
+        """Race S2 vs OpenAlex concurrently, return first valid result."""
+        async def _try_s2():
+            return await self.s2_crawler.get_paper_by_id(paper_id)
+
+        async def _try_openalex():
+            return await self.openalex_crawler.get_paper_by_id(paper_id)
+
+        tasks = [
+            asyncio.create_task(_try_s2()),
+            asyncio.create_task(_try_openalex()),
+        ]
+
+        try:
+            # wait_first_completed: return as soon as any task succeeds
+            for coro in asyncio.as_completed(tasks):
+                try:
+                    paper = await coro
+                    if paper:
+                        # Cancel remaining tasks
+                        for t in tasks:
+                            if not t.done():
+                                t.cancel()
+                        return paper
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.warning(f"Race fetch error for {paper_id}: {e}")
+        finally:
+            # Ensure all tasks are cleaned up
+            for t in tasks:
+                if not t.done():
+                    t.cancel()
+
+        return None
     
     async def _fetch_references_with_fallback(self, paper: Paper, source: str) -> List[Paper]:
         """Fetch references with fallback (S2 -> OpenAlex)
@@ -376,9 +434,6 @@ class GraphBuilder:
         
         # Prepare batch with contexts
         batch_inputs = []
-        
-        # Fetch contexts concurrently using Semantic Scholar
-        from ..crawlers import semantic_scholar
         
         logger.info(f"Fetching citation contexts for {len(edges_to_classify)} pairs...")
         
