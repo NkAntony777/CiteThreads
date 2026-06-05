@@ -1,0 +1,57 @@
+.resizable-shell {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.resizable-shell__group {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.resizable-shell__panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--panel-bg, rgba(255, 255, 255, 0.02));
+}
+
+.resizable-shell__label {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--label-color, rgba(255, 255, 255, 0.45));
+    border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    flex-shrink: 0;
+}
+
+.resizable-shell__content {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.resizable-shell__handle {
+    width: 4px;
+    background: var(--border-color, rgba(255, 255, 255, 0.08));
+    cursor: col-resize;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.resizable-shell__handle:hover,
+.resizable-shell__handle[data-resize-handle-active] {
+    background: var(--accent-color, #D4AF37);
+}
+
+.resizable-shell__handle--right {
+    /* When the right panel is fully collapsed, the user grabs this
+       handle to pull it back open. The native panel-resize-handle
+       affordance is enough — no extra styling needed here. */
+}
